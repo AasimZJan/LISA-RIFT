@@ -1736,7 +1736,7 @@ if plot_args:
         plot_node = pipeline.CondorDAGNode(plot_job)
         plot_node.add_macro("macroiteration", it)
         plot_node.add_macro("macroiterationlast", it-1)
-        plot_node.add_parent(parent_fit_node)
+        plot_node.add_parent(last_node)
         plot_node.set_category("PLOT")
         dag.add_node(plot_node)
 
