@@ -4586,7 +4586,7 @@ def frame_data_to_hoft_old(fname, channel, start=None, stop=None, window_shape=0
 
 
 # LISA 
-def create_hlmoft_from_NRhdf5(path_to_hdf5, P, lmax= None, only_mode=None, taper_percent = 1, resize = True, verbose = True):
+def create_hlmoft_from_NRhdf5(path_to_hdf5, P, lmax = None, only_mode = None, taper_percent = 1, resize = True, verbose = True):
     """This function creates a hlm dictionary using an NRhdf5 file that should be in the LVK format. The mode content is determined by only_mode and lmax option, and if both are set to None this function defaults to the lmax in the hdf5 file.
         Args:
             path_to_hdf5 (str): Path to NRhdf5 file,
@@ -4603,7 +4603,7 @@ def create_hlmoft_from_NRhdf5(path_to_hdf5, P, lmax= None, only_mode=None, taper
     
 
     import romspline
-    assert 0<=taper_percent <=100, "taper_percent argument should be between 0 and 100."
+    assert 0 <= taper_percent <= 100, "taper_percent argument should be between 0 and 100."
     
     # For unit conversion
     kg_in_sec = lal.G_SI/lal.C_SI**3
