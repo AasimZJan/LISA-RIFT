@@ -8,6 +8,7 @@ import numpy as np
 import lal.series
 import lal
 import matplotlib.pyplot as plt
+import os
 class Object(object):
     pass
 
@@ -19,12 +20,14 @@ parser.add_argument("--conventional-postfix",action='store_true')
 parser.add_argument("--ifo",default="H1")
 parser.add_argument("--asd",action='store_true', help="If specified, the input is an ASD. Square it.")
 parser.add_argument("--plot",default='True', help="Plot psd for sanity")
+parser.add_argument("--save-path", default=os.getcwd(), help="path where to save the psds and plots, if requested")
 opts=  parser.parse_args()
+
+print(f"Saving PSD in {opts.save_path}")
 
 dat = np.loadtxt(opts.fname_psd_ascii)
 if opts.asd:
     dat[:,1] = dat[:,1]**2
-
 
 ##
 ## Zero pad as needed
@@ -34,7 +37,8 @@ if dat[0,0] > 0:
     n_now = len(dat)
     df = dat[1,0] - dat[0,0]
     n_to_add = int(f0/df)
-    print( f0, df, n_to_add)
+    print(f"This PSD is defined over the frequency range = {f0, dat[-1,0]}")
+    print(f"Adding points to ensure the PSD starts from 0 Hz; PSD f0 = {f0}, deltaF = {df}, points to add = {n_to_add}")
     dat_new = np.zeros( (len(dat)+n_to_add,2))
     dat_new[n_to_add:,0] = dat[:,0]
     dat_new[n_to_add:,1] = dat[:,1]
@@ -61,10 +65,12 @@ psd_dict = {opts.ifo: psd_s}
 # plot for sanity
 if opts.plot:
     fvals  = psd_s.f0 + psd_s.deltaF*np.arange(psd_s.data.length)
+    plt.xlabel("Frequency [Hz]")
+    plt.ylabel("Noise amplitude")
     plt.loglog(fvals, np.sqrt(fvals*psd_s.data.data), label="RIFT")
-    plt.loglog(dat[:,0], np.sqrt(dat[:,0]*dat[:,1]), label="original")
+    plt.loglog(dat[:,0], np.sqrt(dat[:,0]*dat[:,1]), label="original", alpha = 0.5, linewidth = 1.5)
     plt.legend()
-    plt.savefig(f"{opts.ifo}_comparison.png")
+    plt.savefig(f"{opts.save_path}/{opts.ifo}_comparison.png")
 xmldoc = lal.series.make_psd_xmldoc(psd_dict)
 # Manually set the name
 xmldoc.childNodes[0].attributes._attrs  = {"Name": "psd"}
@@ -72,7 +78,7 @@ xmldoc.childNodes[0].attributes._attrs  = {"Name": "psd"}
 from ligo.lw import utils
 fname_out = opts.ifo+opts.prefix_out+"_fromascii_psd.xml.gz"
 if opts.conventional_postfix:
-    fname_out = opts.ifo+"-psd.xml.gz"
+    fname_out = opts.save_path+"/"+opts.ifo+"-psd.xml.gz"
 utils.write_filename(xmldoc, fname_out, compress="gz")
 
-np.savetxt(opts.ifo+opts.prefix_out+"_fmax.dat",[np.max(dat[:,0]) - 2]) # add a 2Hz buffer 
+np.savetxt(opts.save_path+"/"+opts.ifo+opts.prefix_out+"_fmax.dat",[np.max(dat[:,0]) - 2]) # add a 2Hz buffer 
