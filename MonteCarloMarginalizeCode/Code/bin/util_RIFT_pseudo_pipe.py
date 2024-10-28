@@ -22,7 +22,7 @@ import lal
 import lalsimulation as lalsim
 import RIFT.lalsimutils as lalsimutils
 import configparser as ConfigParser
-
+import RIFT.LISA.utils.utils as lisa_utils
 if ( 'RIFT_LOWLATENCY'  in os.environ):
     assume_lowlatency = True
 else:
@@ -860,8 +860,9 @@ if opts.LISA:
     if opts.h5_frame:
         line += "--h5-frame "
     line += "--data-integration-window-half {} ".format(opts.data_integration_window_half) 
-    if opts.modes: 
-        line += "--modes {} ".format(opts.modes)
+    if opts.modes:
+        modes = lisa_utils.check_modes_input(opts.modes, only_positive_modes = True) 
+        line += "--modes {} ".format(modes)
     if opts.lisa_fixed_sky:
         line +=" --lisa-fixed-sky True --ecliptic-latitude {} --ecliptic-longitude {} ".format(opts.ecliptic_latitude, opts.ecliptic_longitude)
     line = line.replace('--declination-cosine-sampler', '')

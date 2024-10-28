@@ -574,3 +574,30 @@ def get_secondary_mode_for_skylocation(coalesence_time, lamda, beta, psi = 0.0, 
     lisa_params_new[0, 2] = -1.0*lisa_params_new[0, 2]
     SSB_params_new = LISA_to_SSB(lisa_params_new[0, 0], lisa_params_new[0, 1], lisa_params_new[0, 2], lisa_params_new[0, 3])
     return SSB_params_new
+
+def check_modes_input(modes , only_positive_modes = True):
+    """
+    This function checks the modes list passed to util_RIFT_pseudo_pipe.py 
+    when creating the pipeline for analysis. It removes duplicates and if analysing
+    aligned system, the likelihood code uses the equatorial symmetry to include the effect
+    of -m modes, and hence this function will remove -m modes in that case.
+    Args:
+        modes (list): list of modes,
+        only_positive_modes (bool): convert -m modes to +m mode.
+    returns:
+        modes (list)"""
+    # Convert -m modes to +m modes if only_positive_modes is True
+    if only_positive_modes:
+        for i, mode in enumerate(modes):
+            l, m = mode[0], mode[1]
+            if m < 0:
+                modes[i] = (l, -m)
+    # Check for duplicates
+    unique_modes_list = []
+    for i, mode in enumerate(modes):
+        if not(mode in unique_modes_list):
+            unique_modes_list.append(mode)
+    modes = unique_modes_list
+    return modes
+
+   
