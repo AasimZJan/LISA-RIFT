@@ -373,7 +373,7 @@ parser.add_argument("--LISA", action="store_true", help="Code knows that it is b
 parser.add_argument("--s1z-range", default=None, help="s1z range")
 parser.add_argument("--s2z-range", default=None, help="s2z range")
 parser.add_argument("--beta-range",default=None, help="beta range" )
-parser.add_argument("--lambda-range",default=None, help="lambda range" )
+parser.add_argument("--lambda-range",default=None, help="lambda range")
 opts=  parser.parse_args()
 if not(opts.no_adapt_parameter):
     opts.no_adapt_parameter =[] # needs to default to empty list
