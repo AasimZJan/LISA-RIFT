@@ -264,6 +264,8 @@ parser.add_argument("--workflow",default='single',help="[single|fit+posterior|fu
 parser.add_argument("--n-post-jobs",default=1,type=int,help="Number of posterior jobs. Used in posterior and fit+posterior workflows")
 parser.add_argument("--use-bw-psd",action='store_true',help="Use BW PSD, attempting to use fiducial arguments as in LI for placement (i.e., signal at seglen -2). Assumes LI style data convention.  Necessary BW will be parsed out of ile-args.txt (required)")
 parser.add_argument("--use-full-submit-paths",action='store_true',help="DAG created has full paths to submit files generated. Note this is implemented on a per-file/as-needed basis, mainly to facilitate using this dag as an external subdag")
++parser.add_argument("--search-reflected-sky-mode", default=False, help="Use the transformation relation between reflected and true sky mode.")
++parser.add_argument("--search-reflected-sky-mode-iteration", default=None, help="Iteration at which the code should search for reflected mode, if None will search and n-2th iteration")
 opts=  parser.parse_args()
 
 

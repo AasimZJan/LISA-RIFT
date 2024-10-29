@@ -172,7 +172,7 @@ parser.add_argument("--internal-marginalize-distance",action='store_true',help="
 parser.add_argument("--internal-marginalize-distance-file",help="Filename for marginalization file.  You MUST make sure the max distance is set correctly")
 parser.add_argument("--internal-distance-max",type=float,help="If present, the code will use this as the upper limit on distance (overriding the distance maximum in the ini file, or any other setting). *required* to use internal-marginalize-distance in most circumstances")
 parser.add_argument("--internal-correlate-default",action='store_true',help='Force joint sampling in mc,delta_mc, s1z and possibly s2z')
-parser.add_argument("--internal-force-iterations",type=int,default=None,help="If inteeger provided, overrides internal guidance on number of iterations, attempts to force prolonged run. By default puts convergence tests on")
+parser.add_argument("--internal-force-iterations",type=int,default=None,help="If integer provided, overrides internal guidance on number of iterations, attempts to force prolonged run. By default puts convergence tests on")
 parser.add_argument("--internal-test-convergence-threshold",type=float,default=None,help="The value of the threshold. 0.02 has been default. If not specified, left out of helper command line (where default is maintained) ")
 parser.add_argument("--internal-flat-strategy",action='store_true',help="Use the same CIP options for every iteration, with convergence tests on.  Passes --test-convergence, ")
 parser.add_argument("--internal-use-amr",action='store_true',help="Changes refinement strategy (and initial grid) to use. PRESENTLY WE CAN'T MIX AND MATCH AMR, CIP ITERATIONS, so this is fixed for the whole run right now; use continuation and 'fetch' to augment")
@@ -296,6 +296,8 @@ parser.add_argument("--force-lambda-range", default=None, help="lambda range")
 parser.add_argument("--force-beta-range", default=None, help="beta range")
 parser.add_argument("--force-cip-neff", default=None, help="Force neff for intermediate steps, for really high SNRs you should request a high neff while asking for low number of samples (20 neff and 2 samples) per job")
 parser.add_argument("--cip-request-disk", default="10M", help="Request disk for CIP, will need around 20M for when all.net had  >10^5 points")
+parser.add_argument("--search-reflected-sky-mode", default=False, help="Use the transformation relation between reflected and true sky mode.")
+parser.add_argument("--search-reflected-sky-mode-iteration", default=None, help="Iteration at which the code should search for reflected mode, if None will search and n-2th iteration")
 opts=  parser.parse_args()
 
 
@@ -1317,6 +1319,9 @@ cepp = "create_event_parameter_pipeline_BasicIteration"
 if opts.use_subdags:
     cepp = "create_event_parameter_pipeline_AlternateIteration"
 cmd =cepp+ "  --ile-n-events-to-analyze {} --input-grid proposed-grid.xml.gz --ile-exe  `which integrate_likelihood_extrinsic_batchmode`   --ile-args `pwd`/args_ile.txt --cip-args-list args_cip_list.txt --test-args args_test.txt --request-memory-CIP {} --n-samples-per-job ".format(n_jobs_per_worker,cip_mem) + str(npts_it) + " --request-memory-ILE " + str(opts.ile_memory) + " --working-directory `pwd` --n-iterations " + str(n_iterations) + " --n-iterations-subdag-max {} ".format(opts.internal_n_iterations_subdag_max) + "  --n-copies {} ".format(opts.ile_copies) + "   --ile-retries "+ str(opts.ile_retries) + " --general-retries " + str(opts.general_retries) + " --cip-request-disk " + str(opts.cip_request_disk)
+
+if opts.LISA and opts.search_reflected_sky_mode:
+    cmd += f" --search-reflected-sky-mode True --search-reflected-sky-mode-iteration {opts.search_reflected_sky_mode_iteration}" 
 if opts.assume_matter or opts.assume_eccentric:
     cmd +=  " --convert-args `pwd`/helper_convert_args.txt "
 if not(opts.ile_runtime_max_minutes is None):
