@@ -4,10 +4,6 @@ import numpy as np
 import h5py
 import sys
 from scipy.interpolate import interp1d
-
-RIFT = "RIFT-LISA-3G-O4c"
-sys.path.append(f"/Users/aasim/Desktop/Research/Mcodes/{RIFT}/MonteCarloMarginalizeCode/Code")
-
 import RIFT.lalsimutils as lsu
 from RIFT.LISA.response.LISA_response import *
 
