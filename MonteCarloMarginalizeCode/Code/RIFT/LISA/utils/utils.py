@@ -591,7 +591,9 @@ def check_modes_input(modes , only_positive_modes = True):
     # Check for duplicates
     unique_modes_list = []
     for i, mode in enumerate(modes):
-        if not(mode in unique_modes_list):
+        if i == 0:
+            unique_modes_list.append(mode)
+        elif mode not in unique_modes_list:
             unique_modes_list.append(mode)
     modes = unique_modes_list
     return modes
