@@ -1061,8 +1061,8 @@ if opts.search_reflected_sky_mode:
    	reflected_mode_iter = int(opts.n_iterations) - 2 
    if reflected_mode_iter <= 0:
    	reflected_mode_iter = int(opts.n_iterations) - 1
-   reflected_mode_args = f"--lisa-reference-time {opts.lisa_reference_time} --fname {opts.working_directory}/overlap-grid-{reflected_mode_iter}.xml.gz" 
-   reflected_mode_job, reflected_mode_job_name = dag_utils.write_convert_sub(tag='reflected_sky_mode',log_dir=None,arg_str=reflected_mode_args,file_input=opts.working_directory+'/overlap-grid-{reflected_mode_iter}.xml.gz',file_output=opts.working_directory+'/overlap-grid-{reflected_mode_iter}.xml.gz',out_dir=opts.working_directory,exe=reflected_mode_exe,universe=local_worker_universe,no_grid=no_worker_grid)
+   reflected_mode_args = f"--lisa-reference-time {opts.lisa_reference_time} --fname " 
+   reflected_mode_job, reflected_mode_job_name = dag_utils.write_convert_sub(tag='reflected_sky_mode',log_dir=None,arg_str=reflected_mode_args,file_input=opts.working_directory+f'/overlap-grid-{reflected_mode_iter}.xml.gz',file_output=opts.working_directory+f'/overlap-grid-{reflected_mode_iter}.xml.gz',out_dir=opts.working_directory,exe=reflected_mode_exe,universe=local_worker_universe,no_grid=no_worker_grid)
    reflected_mode_job.add_condor_cmd("initialdir",opts.working_directory+"/iteration_$(macroiteration)_cip")
    reflected_mode_job.set_log_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/reflected-sky-mode-$(cluster)-$(process).log")
    reflected_mode_job.set_stderr_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/reflected-sky-mode--$(cluster)-$(process).err")
@@ -1614,9 +1614,9 @@ for it in np.arange(it_start,opts.n_iterations):
 
         parent_fit_node=test_node
 
-    if opts.search_reflected_sky_mode and it == reflected_mode_iter:
+    if opts.search_reflected_sky_mode and it == reflected_mode_iter-1:
     	reflected_mode_node=pipeline.CondorDAGNode(reflected_mode_job)
-    	reflected_mode_node.add_macro("macroiteration", it)
+    	reflected_mode_node.add_macro("macroiteration", it+1)
     	reflected_mode_node.add_parent(test_node)
     	reflected_mode_node.set_category("REFLECTEDSKYMODE")
     	reflected_mode_node.set_retry(opts.general_retries)
