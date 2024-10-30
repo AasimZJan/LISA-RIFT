@@ -597,6 +597,7 @@ def evaluate_run(run_diagnostics):
     f.write(f"Total number of high marginalized lnL points = {run_diagnostics['total_high_lnL_points']}\n")
     f.write(f"Total number of high marginalized lnL points used = {run_diagnostics['high_lnL_points']}\n")
     f.write(f"Total number of high marginalized lnL points not used due to large error = {run_diagnostics['high_lnL_points_with_large_error']}\n")
+    f.write(f"Approximate SNR captured = {np.sqrt(2*run_diagnostics['max_lnL'])}")
     f.write(f"\nLikelihood exploration data per iteration: \n{run_diagnostics['composite_information']}\n")
     ILE_is_good = True
     if run_diagnostics['high_lnL_points_with_large_error']/run_diagnostics['total_high_lnL_points'] > 0.5:
@@ -654,6 +655,13 @@ def evaluate_run(run_diagnostics):
         f.write("\t--> CIP status: GOOD! <--\n")
     else:
         f.write("\t--> CIP status: BAD! <--\n")
+    f.write("###########################################################################################\n")
+    f.write("# Visual diagnostics\n")
+    f.write("###########################################################################################\n")
+    f.write("\t 1) Is the 90% credible interval mostly around the red points? If not, it could be that the run needs more iterations. If the SNR < 30, then the prior might be impact it and the shift is expected.")
+    f.write("\t 2) Has the parameter space been sufficiently explored? Are there blue points around the red points? Continuing the run will help if this is true with {run_diagnostics['latest_grid']} as your starting grid and copying this run's all.net as bonus.composite in your new run directory")
+    f.write("\t 3) Is the approximate SNR captured close to True SNR? A significant difference implies the inference got stuck at a local lnL maxima. Happens rarely")
+
     f.close()
     print("###########################################################################################")
     print("# Run diagnositcs")
