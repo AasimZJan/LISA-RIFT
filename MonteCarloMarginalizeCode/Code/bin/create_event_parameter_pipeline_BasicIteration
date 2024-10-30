@@ -264,8 +264,9 @@ parser.add_argument("--workflow",default='single',help="[single|fit+posterior|fu
 parser.add_argument("--n-post-jobs",default=1,type=int,help="Number of posterior jobs. Used in posterior and fit+posterior workflows")
 parser.add_argument("--use-bw-psd",action='store_true',help="Use BW PSD, attempting to use fiducial arguments as in LI for placement (i.e., signal at seglen -2). Assumes LI style data convention.  Necessary BW will be parsed out of ile-args.txt (required)")
 parser.add_argument("--use-full-submit-paths",action='store_true',help="DAG created has full paths to submit files generated. Note this is implemented on a per-file/as-needed basis, mainly to facilitate using this dag as an external subdag")
-+parser.add_argument("--search-reflected-sky-mode", default=False, help="Use the transformation relation between reflected and true sky mode.")
-+parser.add_argument("--search-reflected-sky-mode-iteration", default=None, help="Iteration at which the code should search for reflected mode, if None will search and n-2th iteration")
+parser.add_argument("--search-reflected-sky-mode", default=False, help="Use the transformation relation between reflected and true sky mode.")
+parser.add_argument("--search-reflected-sky-mode-iteration", default=None, help="Iteration at which the code should search for reflected mode, if None will search and n-2th iteration")
+parser.add_argument("--lisa-reference-time", default=None, help="LISA reference time")
 opts=  parser.parse_args()
 
 
@@ -1052,6 +1053,25 @@ if opts.test_args:
         test_job.set_sub_file(fname)
     test_job.write_sub_file()
 
+if opts.search_reflected_sky_mode:
+   reflected_mode_exe = which("convert_primary_sky_mode_to_secondary")
+   if opts.search_reflected_sky_mode_iteration:
+   	reflected_mode_iter = int(opts.search_reflected_sky_mode_iteration)
+   else:
+   	reflected_mode_iter = int(opts.n_iterations) - 2 
+   if reflected_mode_iter <= 0:
+   	reflected_mode_iter = int(opts.n_iterations) - 1
+   reflected_mode_args = f"--lisa-reference-time {opts.lisa_reference_time} --fname {opts.working_directory}/overlap-grid-{reflected_mode_iter}.xml.gz" 
+   reflected_mode_job, reflected_mode_job_name = dag_utils.write_convert_sub(tag='reflected_sky_mode',log_dir=None,arg_str=reflected_mode_args,file_input=opts.working_directory+'/overlap-grid-{reflected_mode_iter}.xml.gz',file_output=opts.working_directory+'/overlap-grid-{reflected_mode_iter}.xml.gz',out_dir=opts.working_directory,exe=reflected_mode_exe,universe=local_worker_universe,no_grid=no_worker_grid)
+   reflected_mode_job.add_condor_cmd("initialdir",opts.working_directory+"/iteration_$(macroiteration)_cip")
+   reflected_mode_job.set_log_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/reflected-sky-mode-$(cluster)-$(process).log")
+   reflected_mode_job.set_stderr_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/reflected-sky-mode--$(cluster)-$(process).err")
+   reflected_mode_job.set_stdout_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/reflected-sky-mode-$(cluster)-$(process).out")
+   reflected_mode_job.add_condor_cmd('request_disk',opts.general_request_disk)
+   if opts.use_full_submit_paths:
+   	fname = opts.working_directory+"/"+reflected_mode_job.get_sub_file()
+   reflected_mode_job.write_sub_file()
+
 
 if opts.plot_args and opts.test_args:
     # default: last two iterations
@@ -1593,6 +1613,16 @@ for it in np.arange(it_start,opts.n_iterations):
         test_node_list.append(test_node)
 
         parent_fit_node=test_node
+
+    if opts.search_reflected_sky_mode and it == reflected_mode_iter:
+    	reflected_mode_node=pipeline.CondorDAGNode(reflected_mode_job)
+    	reflected_mode_node.add_macro("macroiteration", it)
+    	reflected_mode_node.add_parent(test_node)
+    	reflected_mode_node.set_category("REFLECTEDSKYMODE")
+    	reflected_mode_node.set_retry(opts.general_retries)
+    	dag.add_node(reflected_mode_node)
+    	parent_fit_node=reflected_mode_node
+    	
 
 
 # Create export stages for extrinsic samples

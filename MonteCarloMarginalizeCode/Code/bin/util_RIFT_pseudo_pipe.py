@@ -1321,7 +1321,10 @@ if opts.use_subdags:
 cmd =cepp+ "  --ile-n-events-to-analyze {} --input-grid proposed-grid.xml.gz --ile-exe  `which integrate_likelihood_extrinsic_batchmode`   --ile-args `pwd`/args_ile.txt --cip-args-list args_cip_list.txt --test-args args_test.txt --request-memory-CIP {} --n-samples-per-job ".format(n_jobs_per_worker,cip_mem) + str(npts_it) + " --request-memory-ILE " + str(opts.ile_memory) + " --working-directory `pwd` --n-iterations " + str(n_iterations) + " --n-iterations-subdag-max {} ".format(opts.internal_n_iterations_subdag_max) + "  --n-copies {} ".format(opts.ile_copies) + "   --ile-retries "+ str(opts.ile_retries) + " --general-retries " + str(opts.general_retries) + " --cip-request-disk " + str(opts.cip_request_disk)
 
 if opts.LISA and opts.search_reflected_sky_mode:
-    cmd += f" --search-reflected-sky-mode True --search-reflected-sky-mode-iteration {opts.search_reflected_sky_mode_iteration}" 
+    cmd += f" --search-reflected-sky-mode True --lisa-refernce-time {opts.lisa_reference_time}"
+    # if the user has not provided the iteration, the code decides it to be (n-2)th iteration
+    if not(opts.search_reflected_sky_mode_iteration is None):
+    	cmd += f"--search-reflected-sky-mode-iteration {opts.search_reflected_sky_mode_iteration}" 
 if opts.assume_matter or opts.assume_eccentric:
     cmd +=  " --convert-args `pwd`/helper_convert_args.txt "
 if not(opts.ile_runtime_max_minutes is None):
