@@ -11,7 +11,7 @@ from scipy.spatial.distance import jensenshannon
 from scipy.stats import gaussian_kde
 from collections import namedtuple
 import sys
-
+import RIFT.lalsimutils as lsu
 # Matplotlib configuration
 plt.rcParams.update({
     'axes.labelsize': 16,
@@ -417,6 +417,7 @@ def plot_cip_max_lnL(path_to_main_folder):
     ax.set_xlabel('iteration')
     ax.set_ylabel('lnL')
     ax.axhline(y = run_diagnostics['max_lnL'], linestyle = "--", color="black")
+    ax.fill_between(iterations, run_diagnostics['max_lnL']-2, run_diagnostics['max_lnL'], color="green", alpha=0.5)
     ax.set_xticks(iterations)
     fig.savefig(path+f"/plots/Sampled_CIP_lnL.png", bbox_inches="tight")
     plt.close()
@@ -436,6 +437,8 @@ def plot_histograms(sorted_posterior_file_paths, plot_title, iterations = None, 
     if iterations is None: 
         iterations = [-1]
         plot_legend = False
+    if use_truths:
+        P = lsu.xml_to_ChooseWaveformParams_array(truth_file_path)[0]
     # all_net_data = convert_all_net_to_posterior_format(all_net_path)
     # not_nan_lnL = np.argwhere(all_net_data[:,-3]>=np.max(all_net_data[:,-3]) - 15).flatten()#np.argwhere(~np.isnan(all_net_data[:,-3])).flatten()
     # all_net_data = np.array(all_net_data[not_nan_lnL])
@@ -462,6 +465,18 @@ def plot_histograms(sorted_posterior_file_paths, plot_title, iterations = None, 
                 JS_test = calculate_JS_divergence(data, data_previous)
                 line_label +=f" ({calculate_JS_divergence(data, data_previous).median:0.3f})"
             ax.hist(data, label = line_label, histtype="step", bins = 50, density=True, linewidth=1.0)
+            if use_truths:
+                factor = 1
+                parameter_extract = parameter
+                if parameter in ["mc", "m1", "m2", "mtot"]:
+                    factor = lsu.lsu_MSUN
+                if parameter == "chi_eff":
+                    parameter_extract = "xi"
+                if parameter == "ra":
+                    parameter_extract = "phi"
+                if parameter == "dec":
+                    parameter_extract = "theta"
+                ax.axvline(x = P.extract_param(parameter_extract)/factor, linestyle="--", linewidth=1.0, color="black")
             data_previous = data
         #try: (this isn't really helpful, so commenting it out)
         #    likelihood = np.exp(np.array(all_net_data[:,-3]))
@@ -488,7 +503,9 @@ def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, para
     """
     max_lnL, no_points = run_diagnostics["max_lnL"], run_diagnostics["high_lnL_points"]  
     title = f"max_lnL={max_lnL:0.2f},points_cut={no_points}" 
-    plotting_command = f"python {corner_plot_exe} --plot-1d-extra --lnL-cut 15 --composite-file {all_net_path} --quantiles None --ci-list [0.9] --use-title {title} --sigma-cut 0.4 "
+    plotting_command = f"python {corner_plot_exe} --plot-1d-extra --quantiles None --ci-list [0.9] --use-title {title} "
+    if plot_title != "extrinsic":
+        plotting_command += f"--composite-file {all_net_path} --lnL-cut 15 --sigma-cut 0.4 "
      # Append iteration-related options to the command
     if iterations is not None:
         plotting_command += "--use-legend "
@@ -576,10 +593,10 @@ def evaluate_run(run_diagnostics):
     f.write("# ILE diagnostics\n")
     f.write("###########################################################################################\n")
     # Monte carlo error and number of high lnL points
-    f.write(f"Total number of lnL evaluations = {run_diagnostics['total_lnL_evaluations']}\n")
-    f.write(f"Total number of high lnL points = {run_diagnostics['total_high_lnL_points']}\n")
-    f.write(f"Total number of high lnL points used = {run_diagnostics['high_lnL_points']}\n")
-    f.write(f"Total number of high lnL points not used due to large error = {run_diagnostics['high_lnL_points_with_large_error']}\n")
+    f.write(f"Total number of marginalized lnL evaluations = {run_diagnostics['total_lnL_evaluations']}\n")
+    f.write(f"Total number of high marginalized lnL points = {run_diagnostics['total_high_lnL_points']}\n")
+    f.write(f"Total number of high marginalized lnL points used = {run_diagnostics['high_lnL_points']}\n")
+    f.write(f"Total number of high marginalized lnL points not used due to large error = {run_diagnostics['high_lnL_points_with_large_error']}\n")
     f.write(f"\nLikelihood exploration data per iteration: \n{run_diagnostics['composite_information']}\n")
     ILE_is_good = True
     if run_diagnostics['high_lnL_points_with_large_error']/run_diagnostics['total_high_lnL_points'] > 0.5:
@@ -608,7 +625,7 @@ def evaluate_run(run_diagnostics):
     last_iter_neff = run_diagnostics['CIP_neff'][list(run_diagnostics['CIP_neff'].keys())[-1]]
     last_iter_neff_achieved = run_diagnostics['CIP_neff_achieved'][list(run_diagnostics['CIP_neff_achieved'].keys())[-1]]
     if last_iter_neff > last_iter_neff_achieved:
-        f.write(f"\t--> neff has not been reached, the posterior distribution may be wider and/or irregular. To address this, try narrowing the parameter space or switching to a different sampler. Alternatively, you can reduce the neff for each CIP job (>10) and increase the number of CIP jobs submitted per iteration.\n")
+        f.write(f"\t--> neff has not been reached, the posterior distribution may be wider and/or less smooth. To address this, try narrowing the parameter space or switching to a different sampler. Alternatively, you can reduce the neff for each CIP job (>10) and increase the number of CIP jobs submitted per iteration.\n")
         CIP_is_good = False
     # CIP JSD
     f.write(f"\nCIP Jensen-Shannon divergence:\n{run_diagnostics['JSD']}\n")
@@ -629,7 +646,7 @@ def evaluate_run(run_diagnostics):
     # CIP sampling
     f.write(f"\nAverage max lnL sampled by CIP in iteration {run_diagnostics['latest_iteration']} is: {run_diagnostics['cip_average_max_lnL_sampled']} +- {run_diagnostics['cip_std_max_lnL_sampled']}. Max lnL in all.net is {run_diagnostics['max_lnL']}.\n")
     if run_diagnostics['max_lnL'] - run_diagnostics['cip_average_max_lnL_sampled'] > 2:
-        f.write(f"\t--> The difference between the maximum lnL value from all.net and the average maximum lnL value sampled by CIP is more than 2, which could cause the peak to be slightly shifted. This discrepancy might be because CIP hasn't sampled the peak well enough or due to interpolation errors. If the issue is inadequate sampling (which is more likely in high signal-to-noise ratio cases), you should increase the neff parameter in the CIP sub file, reduce the number of samples requested, and run the CIP script more times (this can be done without setting up a run). This will help ensure that the peak is accurately sampled and that the number of samples is close to neff. If the problem is due to interpolation errors, consider running additional iterations to have sufficient lnL evaluations around the peak. \n") 
+        f.write(f"\t--> The difference between the maximum lnL value from all.net and the average maximum lnL value sampled by CIP is more than 2, which could cause the peak to be slightly shifted. This discrepancy might be because CIP hasn't sampled the peak well enough or due to interpolation errors. If the issue is inadequate sampling (which is more likely in high signal-to-noise ratio cases), you should increase the neff parameter in the CIP sub file, reduce the number of samples requested, and run the CIP script more times (cip-explode-jobs option) (this can be done without setting up a new run). This will help ensure that the peak is accurately sampled and that the number of samples is close to neff. If the problem is due to interpolation errors, consider running additional iterations to have sufficient lnL evaluations around the peak. \n") 
         CIP_is_good = False
 
     f.write("\n")
@@ -645,6 +662,8 @@ def evaluate_run(run_diagnostics):
     for key in run_diagnostics:
         print(f"{key}: {run_diagnostics[key]}")
 
+def check_extrinsic_present(path):
+    return os.path.exists(f"{path}/extrinsic_posterior_samples.dat")
 ###########################################################################################
 # Generate plots
 ###########################################################################################
@@ -705,6 +724,9 @@ if analyse_subdag:
     plot_corner(subdag_posterior_files, "Subdag", iterations = subdag_iterations, use_truths = use_truths)
     plot_JS_divergence(subdag_posterior_files[-1], subdag_posterior_files[-2], "Subdag") # the last two subdag iterations
     plot_JS_divergence(main_posterior_files[-1], subdag_posterior_files[-1], "Main") # the last main and subdag iteration
+
+if check_extrinsic_present(path):
+    plot_corner([f"{path}/extrinsic_posterior_samples.dat"], "extrinsic", parameters = ["distance", "incl", "phiorb", "psi", "time"], use_truths = use_truths)
 
 # run diagnostics
 evaluate_run(run_diagnostics)
