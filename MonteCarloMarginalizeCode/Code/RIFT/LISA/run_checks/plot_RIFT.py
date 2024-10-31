@@ -52,6 +52,9 @@ run_diagnostics = {
 ###########################################################################################
 # Functions
 ###########################################################################################
+###########################################################################################
+# Functions
+###########################################################################################
 def get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=False):
     """
     Analyzes the lnL values from an all.net file to find high likelihood points
@@ -123,7 +126,13 @@ def create_plots_folder(base_dir_path):
         base_dir_path (str): Path to the base directory where the 'plots' folder will be created.
     """
     if not(os.path.exists(base_dir_path + "/plots")):
+        print(f"plots folder does not exist. Creating one in {base_dir_path}")
         os.mkdir(base_dir_path + "/plots")
+        os.mkdir(base_dir_path + "/plots/histograms")
+        os.mkdir(base_dir_path + "/plots/corner_plots")
+        os.mkdir(base_dir_path + "/plots/1_D_plots")
+    else:
+        print(f"plots folder exists, saving plots in directory {base_dir_path}/plots")
 
 def get_chirpmass_massratio_eta_totalmass_from_componentmasses(m1, m2):
     """
@@ -275,12 +284,14 @@ def plot_high_likelihood_expoloration(path_to_main_folder):
     Args:
         path_to_main_folder (str): Path to the main folder containing the composite files.
     """
+    print("\nPlotting likelihood exploration.")
     run_diagnostics["composite_information"] = {}
     fig, ax = plt.subplots()
     ax.set_xlabel("iteration")
     ax.set_ylabel("high lnL points")
     ax.set_title(f"Total high lnL points = {run_diagnostics['high_lnL_points']}, max_lnL = {run_diagnostics['max_lnL']}")
     collect_data = []
+    print("iteration, max lnL (global), high lnL points, max lnL(iteration), total lnL points(iteration)")
     for iteration in np.arange(0, run_diagnostics["latest_iteration"]+1, 1):
         run_diagnostics["composite_information"][iteration] = {}
         try:
@@ -309,6 +320,7 @@ def plot_neff_data(path_to_main_folder):
     Args:
         path_to_main_folder (str): Path to the main folder containing CIP iteration subfolders.
     """
+    print("\nPlotting n-eff for CIP.")
     # find CIP folders
     cip_iteration_folders= glob.glob(path_to_main_folder + "/iteration*cip*")
     
@@ -319,17 +331,17 @@ def plot_neff_data(path_to_main_folder):
     # read requested neff from CIP sub files
     try:
         run_diagnostics["CIP_neff"] = {}
-        neff_requested_0 = os.popen('cat CIP_worker0.sub | grep -Eo "\-\-n-eff [+-]?[0-9]+([.][0-9]+)?"').read()[:-1].split(" ")[-1]
+        neff_requested_0 = os.popen('cat CIP_worker0.sub 2> /dev/null | grep -Eo "\-\-n-eff [+-]?[0-9]+([.][0-9]+)?"').read()[:-1].split(" ")[-1]
         ax.axhline(y = float(neff_requested_0), linestyle = "--", color = "black", alpha = 0.8, linewidth = 1.0, label = "worker 0 neff")
         run_diagnostics["CIP_neff"]["CIP_worker0"] = np.round(float(neff_requested_0), 2)
-        neff_requested_1 = os.popen('cat CIP_worker1.sub | grep -Eo "\-\-n-eff [+-]?[0-9]+([.][0-9]+)?"').read()[:-1].split(" ")[-1]
+        neff_requested_1 = os.popen('cat CIP_worker1.sub 2> /dev/null | grep -Eo "\-\-n-eff [+-]?[0-9]+([.][0-9]+)?"').read()[:-1].split(" ")[-1]
         ax.axhline(y = float(neff_requested_1), linestyle = "--", color = "blue", alpha = 0.8, linewidth = 1.0, label = "worker 1 neff")
         run_diagnostics["CIP_neff"]["CIP_worker1"] = np.round(float(neff_requested_1), 2)
-        neff_requested_2 = os.popen('cat CIP_worker2.sub | grep -Eo "\-\-n-eff [+-]?[0-9]+([.][0-9]+)?"').read()[:-1].split(" ")[-1] # could find a better way to do this
+        neff_requested_2 = os.popen('cat CIP_worker2.sub 2> /dev/null | grep -Eo "\-\-n-eff [+-]?[0-9]+([.][0-9]+)?"').read()[:-1].split(" ")[-1] # could find a better way to do this
         ax.axhline(y = float(neff_requested_2), linestyle = "--", color = "red", alpha = 0.8, linewidth = 1.0, label = "worker 2 neff")
         run_diagnostics["CIP_neff"]["CIP_worker2"] = np.round(float(neff_requested_2), 2)
     except Exception as e:
-        print(e)
+        pass
     ax.legend(loc="upper left")
     # read neff achived for each iteration from each instance of CIP
     run_diagnostics["CIP_neff_achieved"] = {}
@@ -370,7 +382,7 @@ def plot_neff_data(path_to_main_folder):
     index = np.argwhere(max_lnL - collect_lnL >= 2)
     # print, save diagnostics and plot
     print(f"Max lnL  = {max_lnL}, average max lnL from workers = {np.mean(collect_lnL)} with std = {np.std(collect_lnL)}")
-    print(f"Total number of worker in final iteration = {len(lnL_files_last_iteration)}, number of them which didn't capture max_lnL = {len(index)}")
+    print(f"Total number of workers in final iteration = {len(lnL_files_last_iteration)}, number of them which didn't capture max_lnL = {len(index)}")
     run_diagnostics["cip_average_max_lnL_sampled"] = np.round(np.mean(collect_lnL), 2)
     run_diagnostics["cip_std_max_lnL_sampled"] = np.round(np.std(collect_lnL), 3)
     ax.set_title(f"{len(index)} / {len(lnL_files_last_iteration)}")
@@ -391,6 +403,7 @@ def plot_cip_max_lnL(path_to_main_folder):
 
     The function saves the plot as 'Sampled_CIP_lnL.png' in a 'plots' subdirectory of the main folder.
     """
+    print("Plotting sampled lnL by CIP")
     iterations = np.arange(0, run_diagnostics["latest_iteration"]+1, 1)
     run_diagnostics['cip_sampled_lnL'] = {}
     fig, ax = plt.subplots()
@@ -433,6 +446,7 @@ def plot_histograms(sorted_posterior_file_paths, plot_title, iterations = None, 
         plot_legend (bool): Whether to include a legend in the histograms. Defaults to True.
         JSD (bool): Whether to calculate and display Jensen-Shannon Divergence between iterations. Defaults to True.
     """
+    print("\nPlotting histograms")
     # when you just want to plot final iterations histograms
     if iterations is None: 
         iterations = [-1]
@@ -487,7 +501,7 @@ def plot_histograms(sorted_posterior_file_paths, plot_title, iterations = None, 
         # don't create legend when only plotting finals iteration's histograms
         if plot_legend: 
             ax.legend(loc = "upper right")
-        fig.savefig(path+f"/plots/historgam_{plot_title}_{parameter}.png", bbox_inches='tight')
+        fig.savefig(path+f"/plots/histograms/historgam_{plot_title}_{parameter}.png", bbox_inches='tight')
         plt.close()
 
 def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, parameters = ["mc", "eta", "xi"], use_truths = False):
@@ -501,6 +515,7 @@ def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, para
         parameters (list of str): List of parameters to include in the plot. Defaults to ["mc", "eta", "xi"].
         use_truths (bool): Whether to include truth values in the plot. Defaults to False.
     """
+    print(f"\nPlotting corner plot for params ({plot_title}) {parameters}")
     max_lnL, no_points = run_diagnostics["max_lnL"], run_diagnostics["high_lnL_points"]  
     title = f"max_lnL={max_lnL:0.2f},points_cut={no_points}" 
     plotting_command = f"python {corner_plot_exe} --plot-1d-extra --quantiles None --ci-list [0.9] --use-title {title} "
@@ -530,19 +545,22 @@ def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, para
     # Append LISA flag if applicable
     if LISA:
         plotting_command += "--LISA "
+    
+    # avoid too much output
+    plotting_command += " 2> /dev/null"
 
     # Execute the plotting command
     os.system(plotting_command)
 
     # Move and rename output files
     corner_plot_filename = f"corner_{'_'.join(parameters)}.png"
-    new_corner_plot_path = f"plots/corner_{'_'.join(parameters)}_{plot_title}.png"
+    new_corner_plot_path = f"plots/corner_plots/corner_{'_'.join(parameters)}_{plot_title}.png"
     os.system(f"mv {corner_plot_filename} {new_corner_plot_path}")
 
     # Move and rename individual parameter plots
     for parameter in parameters:
-        os.system(f"mv {parameter}.png plots/{parameter}_{plot_title}.png")
-        os.system(f"mv {parameter}_cum.png plots/{parameter}_cum_{plot_title}.png") 
+        os.system(f"mv {parameter}.png plots/1_D_plots/{parameter}_{plot_title}.png")
+        os.system(f"mv {parameter}_cum.png plots/1_D_plots/{parameter}_cum_{plot_title}.png") 
 
 def plot_JS_divergence(posterior_1_path, posterior_2_path, plot_title, parameters = ["mc","eta", "m1", "m2", "s1z", "s2z", "chi_eff"]):
     """
