@@ -666,7 +666,7 @@ def create_lisa_injections(hlmf, fmax, fref, beta, lamda, psi, inclination, phi_
     else:
         return data_dict
 
-def generate_lisa_TDI(P_inj, lmax=4, modes=None, tref=0.0, fref=None, return_response=False, path_to_NR_hdf5=None):
+def generate_lisa_TDI(P_inj, lmax=4, modes=None, tref=0.0, fref=None, return_response=False, path_to_NR_hdf5=None, NR_taper_percent=1):
     print(f"generate_lisa_TDI function has been called with following arguments:\n{locals()}")
     P = lsu.ChooseWaveformParams()
 
@@ -688,7 +688,7 @@ def generate_lisa_TDI(P_inj, lmax=4, modes=None, tref=0.0, fref=None, return_res
     P.tref = 0.0
 
     P.approx = P_inj.approx
-    hlmf = lsu.hlmoff_for_LISA(P, Lmax=lmax, modes=modes, path_to_NR_hdf5=path_to_NR_hdf5)
+    hlmf = lsu.hlmoff_for_LISA(P, Lmax=lmax, modes=modes, path_to_NR_hdf5=path_to_NR_hdf5, NR_taper_percent=NR_taper_percent)
     modes = list(hlmf.keys())
 
     # create TDI

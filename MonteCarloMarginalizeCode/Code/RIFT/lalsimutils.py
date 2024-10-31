@@ -4616,7 +4616,7 @@ def create_hlmoft_from_NRhdf5(path_to_hdf5, P, lmax = None, only_mode = None, ta
 
     # To avoid NR format errors. This should be fixed later on.
     P.fref = 0
-    print(f"Setting P.fref to {P.fref} to prevent NR format errors.")
+    print(f"Setting P.fref to {P.fref} to prevent NR format errors. Tapering percent is {taper_percent}.")
 
     # Setting mass and fmin based on the NR waveform.
     m1 = data_1.attrs["mass1"] * mtotal 
