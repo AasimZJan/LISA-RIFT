@@ -678,7 +678,7 @@ def evaluate_run(run_diagnostics):
     f.write("\n###########################################################################################\n")
     f.write("# Visual diagnostics\n")
     f.write("###########################################################################################\n")
-    f.write("\n\t 1) Is the 90% credible interval mostly around the red points? If not, it could be that the run needs more iterations. If the SNR < 30, then the prior might be impact it and the shift is expected.")
+    f.write("\t 1) Is the 90% credible interval mostly around the red points? If not, it could be that the run needs more iterations. If the SNR < 30, then the prior might be impact it and the shift is expected.")
     f.write(f"\n\t 2) Has the parameter space been sufficiently explored? Are there blue points around the red points? Continuing the run will help if this is true with {run_diagnostics['latest_grid']} as your starting grid and copying this run's all.net as bonus.composite in your new run directory")
     f.write("\n\t 3) Is the approximate SNR captured close to True SNR? A significant difference implies the inference got stuck at a local lnL maxima. Happens rarely")
 
