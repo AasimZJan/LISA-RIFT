@@ -2,22 +2,23 @@
 import RIFT.lalsimutils as lsu
 import numpy as np
 from argparse import ArgumentParser
-from RIFT.LISA.utils.utils import get_secondary_mode_for_skylocation
+from RIFT.LISA.utils.utils import get_reflected_mode_for_skylocation
 
 parser = ArgumentParser()
 
 parser.add_argument("--lisa-reference-time", help = "LISA coalescence time")
-parser.add_argument("--fname", help = "path to overlap grid for which you want to convert the primary sky mode to secondary sky mode.")
+parser.add_argument("--fname", help = "path to overlap grid for which you want to convert the primary sky mode to reflected sky mode.")
 
 opts = parser.parse_args()
 
 # Load the grid
 Plist = lsu.xml_to_ChooseWaveformParams_array(opts.fname)
 t_c = float(opts.lisa_reference_time)
-# Loop over the points and convert the primary mode to secondary mode.
+# Loop over the points and convert the primary mode to reflected mode.
 for i in np.arange(len(Plist)):
     P = Plist[i]
-    t_throw, lamda_sec, beta_sec, psi_throw =  get_secondary_mode_for_skylocation(t_c, P.phi, P.theta, 0.0) 
+    secondary_mode =  get_reflected_mode_for_skylocation(t_c, P.phi, P.theta, 0.0) 
+    t_throw, lamda_sec, beta_sec, psi_throw = secondary_mode[0,0], secondary_mode[0,1], secondary_mode[0,2], secondary_mode[0,3] 
     P.phi, P.theta = lamda_sec, beta_sec
 # Overwrite so ILE will use it
 lsu.ChooseWaveformParams_array_to_xml(Plist, opts.fname)

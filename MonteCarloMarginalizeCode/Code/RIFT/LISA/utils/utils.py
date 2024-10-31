@@ -550,9 +550,9 @@ def SSB_to_LISA(tSSB, lambdaSSB, betaSSB, psiSSB, t0=0.0):
     return np.vstack([tL, lambdaL, betaL, psiL]).T
 
 
-def get_secondary_mode_for_skylocation(coalesence_time, lamda, beta, psi = 0.0, t0=0.0):
+def get_reflected_mode_for_skylocation(coalesence_time, lamda, beta, psi = 0.0, t0=0.0):
     """
-    Calculate the secondary mode location for a given sky location in the SSB frame.
+    Calculate the reflected mode location for a given sky location in the SSB frame.
 
     Parameters:
     coalescence_time (float): The time of coalescence.
@@ -562,7 +562,7 @@ def get_secondary_mode_for_skylocation(coalesence_time, lamda, beta, psi = 0.0, 
     t0 (float, optional): The initial time (default is 0.0).
 
     Returns:
-    numpy.ndarray: The secondary mode parameters in the SSB frame, needed for grid generation.
+    numpy.ndarray: The reflected mode parameters in the SSB frame, needed for grid generation.
     """
     lisa_params = SSB_to_LISA(coalesence_time, lamda, beta, psi, t0)
     lisa_params_new = lisa_params
