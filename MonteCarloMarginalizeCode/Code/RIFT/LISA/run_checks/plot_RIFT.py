@@ -291,6 +291,7 @@ def plot_high_likelihood_expoloration(path_to_main_folder):
     ax.set_ylabel("high lnL points")
     ax.set_title(f"Total high lnL points = {run_diagnostics['high_lnL_points']}, max_lnL = {run_diagnostics['max_lnL']}")
     collect_data = []
+    collect_iter = []
     print("iteration, max lnL (global), high lnL points, max lnL(iteration), total lnL points(iteration)")
     for iteration in np.arange(0, run_diagnostics["latest_iteration"]+1, 1):
         run_diagnostics["composite_information"][iteration] = {}
@@ -302,13 +303,14 @@ def plot_high_likelihood_expoloration(path_to_main_folder):
         print(iteration, max_lnL, no_points, max_lnL_composite, total_points)
         percent_high_lnL_points =  np.round(no_points/total_points*100, 2)
         collect_data.append(no_points)
+        collect_iter.append(iteration)
         ax.scatter(iteration, no_points, label = f"{max_lnL_composite} ({percent_high_lnL_points})", s=25)
         run_diagnostics["composite_information"][iteration].update({
                 "max_lnL":max_lnL_composite,
                 "high_lnL_points":no_points,
                 "percent_high_lnL_points": percent_high_lnL_points})
     ax.grid(alpha=0.4)
-    ax.plot(collect_data, color = "black", linestyle = "--", linewidth = 1.5, alpha = 0.5)
+    ax.plot(collect_iter, collect_data, color = "black", linestyle = "--", linewidth = 1.5, alpha = 0.5)
     ax.set_xticks(np.arange(0, run_diagnostics["latest_iteration"]+1, 1))
     ax.legend(loc="upper left")
     fig.savefig(path+f"/plots/Likelihood_exploration_plot.png", bbox_inches='tight')
@@ -673,12 +675,12 @@ def evaluate_run(run_diagnostics):
         f.write("\t--> CIP status: GOOD! <--\n")
     else:
         f.write("\t--> CIP status: BAD! <--\n")
-    f.write("###########################################################################################\n")
+    f.write("\n###########################################################################################\n")
     f.write("# Visual diagnostics\n")
     f.write("###########################################################################################\n")
-    f.write("\t 1) Is the 90% credible interval mostly around the red points? If not, it could be that the run needs more iterations. If the SNR < 30, then the prior might be impact it and the shift is expected.")
-    f.write("\t 2) Has the parameter space been sufficiently explored? Are there blue points around the red points? Continuing the run will help if this is true with {run_diagnostics['latest_grid']} as your starting grid and copying this run's all.net as bonus.composite in your new run directory")
-    f.write("\t 3) Is the approximate SNR captured close to True SNR? A significant difference implies the inference got stuck at a local lnL maxima. Happens rarely")
+    f.write("\n\t 1) Is the 90% credible interval mostly around the red points? If not, it could be that the run needs more iterations. If the SNR < 30, then the prior might be impact it and the shift is expected.")
+    f.write(f"\n\t 2) Has the parameter space been sufficiently explored? Are there blue points around the red points? Continuing the run will help if this is true with {run_diagnostics['latest_grid']} as your starting grid and copying this run's all.net as bonus.composite in your new run directory")
+    f.write("\n\t 3) Is the approximate SNR captured close to True SNR? A significant difference implies the inference got stuck at a local lnL maxima. Happens rarely")
 
     f.close()
     print("###########################################################################################")
