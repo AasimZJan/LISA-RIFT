@@ -63,32 +63,6 @@ def create_lal_COMPLEX16TimeSeries(deltaT, time_series,  epoch = 950000000, f0 =
     return ht_lal
 
 
-def convert_double_sided_to_single_sided(frequency_values, frequency_series, data_defined="negative"):
-    assert len(frequency_values) == len(frequency_series), "frequency_values and frequency_series don't have the same length."
-    if data_defined == "negative":
-        print("Negative")
-        index = np.argwhere(frequency_values<=0).flatten()
-        hf_onesided = create_lal_frequency_series(frequency_values[index], np.conj(frequency_series[index][::-1])) # do I need to conjugate?
-        assert len(frequency_series)//2 + 1 == hf_onesided.data.length
-        return hf_onesided
-    elif data_defined == "positive":
-        print("Positve")
-        index = np.argwhere(frequency_values>=0).flatten()
-        hf_onesided = create_lal_frequency_series(frequency_values[index], frequency_series[index])
-        assert len(frequency_series)//2 + 1 == hf_onesided.data.length
-        return hf_onesided
-    else:
-        print("Need to define how the frequency series is packed (either defined on negative or positive frequencies).")
-        sys.exit(1)
-
-def frequency_series_double_sided(frequency_values, frequency_series, data_defined = "negative"):
-    hf_small = convert_double_sided_to_single_sided(frequency_values, frequency_series, data_defined)
-    tmp = np.zeros(len(frequency_series), dtype=complex)
-    tmp[:len(hf_small.data.data)] = np.conj(hf_small.data.data[::-1])
-    tmp[len(hf_small.data.data)-1:] =  (hf_small.data.data[:-1])
-    hf = create_lal_frequency_series(frequency_values, tmp)
-    return hf
-
 def get_fvals(frequency_series):
     """A function to evaulate frequency values of a COMPLEX16FrequencySeries. Goes from [-fNyq, fNyq - deltaF].
         Args:
@@ -119,6 +93,16 @@ def get_closest_index(array, value):
         Output:
             index (float)"""
     return np.argmin(np.abs(array - value))
+
+
+def create_real_strain_from_double_sided_frequency_series(frequency_series, return_double_sided_frequency_series = False):
+    fvals = get_fvals(frequency_series)
+    tmp = np.zeros(frequency_series.data.length, dtype=complex)
+    tmp = np.conj(frequency_series.data.data[::-1]) + frequency_series.data.data
+    hf = create_lal_frequency_series(fvals, tmp, frequency_series.deltaF)
+    if return_double_sided_frequency_series:
+        return lsu.DataInverseFourier(hf), hf
+    return lsu.DataInverseFourier(hf)
 
 def transformed_Hplus_Hcross(beta, lamda, psi, theta, phiref, l, m):
     """This function transforms the plus and cross polarization from wave frame to SSB frame.
