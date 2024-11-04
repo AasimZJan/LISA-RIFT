@@ -106,7 +106,7 @@ def create_PSD_injection_figure(data_dict, psd, injection_save_path, snr):
 
     # place x-y limits
     plt.gca().set_ylim([10**(-24), 10**(-17)])
-    plt.gca().set_xlim([10**(-4), 1])
+    plt.gca().set_xlim([10**(-5), 1])
     plt.grid(alpha = 0.5)
 
     # save
