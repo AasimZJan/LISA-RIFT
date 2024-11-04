@@ -275,13 +275,12 @@ if __name__ =='__main__':
         cmd += f"--grid-cartesian-npts {int(opts.points)} --skip-overlap"
         print(f"\t Generating grid\n{cmd}")
         os.system(cmd)
-
+        secondary_peak = get_secondary_mode_for_skylocation(float(P_inj.tref), P_inj.phi, P_inj.theta)
+        beta_sec, lambda_sec = secondary_peak[0,2], secondary_peak[0,1]
+        print(f"Secondary peak: lambda {lambda_sec}, beta {beta_sec}")
         if opts.include_reflected_mode:
             os.system('mv overlap-grid.xml.gz overlap-grid-primary.xml.gz')
 
-            secondary_peak = get_secondary_mode_for_skylocation(float(P_inj.tref), P_inj.phi, P_inj.theta)
-            beta_sec, lambda_sec = secondary_peak[0,2], secondary_peak[0,1]
-            print(f"Secondary peak: lambda {lambda_sec}, beta {beta_sec}")
             cmd = f"util_ManualOverlapGrid.py --inj {opts.inj} "
             cmd += f"--parameter mc --parameter-range '[{error_bounds[0]:0.2f}, {error_bounds[1]:0.2f}]' "
             cmd += f"--parameter eta --parameter-range '[{error_bounds[2]:0.5f}, {error_bounds[3]:0.5f}]' "
