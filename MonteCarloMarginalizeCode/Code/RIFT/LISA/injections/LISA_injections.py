@@ -151,7 +151,7 @@ def generate_lisa_TDI_dict(param_dict):
     print(f"path_to_NR_hdf5 = {path_to_NR_hdf5}, approx = {lalsimulation.GetStringFromApproximant(P.approx)}\n")
     print("###############")
 
-    hlmf = lsu.hlmoff_for_LISA(P, Lmax=lmax, modes=modes, path_to_NR_hdf5=path_to_NR_hdf5) 
+    hlmf = lsu.hlmoff_for_LISA(P, Lmax=lmax, modes=modes, path_to_NR_hdf5=path_to_NR_hdf5, NR_taper_percent=param_dict["NR_taper_percent"]) 
     modes = list(hlmf.keys())
 
     # create injections
