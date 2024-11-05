@@ -43,6 +43,12 @@ truth_file_path = os.path.join(path, "../mdc.xml.gz")
 use_truths = os.path.exists(truth_file_path)
 if use_truths:
     print(f"Using {truth_file_path} for truth values in corner plots!")
+else:
+    # if False, try alternative path
+    truth_file_path = os.path.join(path, "../frames/mdc.xml.gz")
+    use_truths = os.path.exists(truth_file_path)
+    if use_truths:
+        print(f"Using {truth_file_path} for truth values in corner plots!")
 
 # Initialize diagnostics dictionary
 run_diagnostics = {
