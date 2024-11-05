@@ -135,7 +135,7 @@ def get_spin_error(eta, q, a1z, a2z, eta_error, beta_error, sigma_error):
         a1z = a1z + 0.001 * a1z
         a2z = a2z - 0.001 * a2z
     if round(a1z,3)==round(a2z,3)==0.0:
-        a1z = 0.01
+        a1z = -0.01
         a2z = -0.01
 
     c1 = sigma_error - eta_error/48 * (474*a1z*a2z)
@@ -193,12 +193,12 @@ def get_error_bounds(P_inj, snr, psd_path):
     # Calculate fisher matrix
     tau_ij, inv_tau_ij = get_fisher_matrix(Mc, eta, sigma, beta, fvals, psd_vals, deltaF, wf)
     if eta < 0.24:
-        factor_eta = 12.5
+        factor_eta = 18
     if eta >=0.24: # the errors estimates seem to be large for q~1 case.
         factor_eta = 1.0
-    factor_mc = 50
-    factor_spin1 = 60
-    factor_spin2 = 60
+    factor_mc = 55
+    factor_spin1 = 80
+    factor_spin2 = 80
     spin_bounds = get_spin_error(eta, q, P_inj.s1z, P_inj.s2z, (np.sqrt(1/tau_ij[3,3]))*eta, np.sqrt(1/tau_ij[4,4]), np.sqrt(1/tau_ij[5,5]))
     
     print(f"Mc span = {2*factor_mc*np.sqrt(1/tau_ij[2,2])*mc}, eta span = {2*np.sqrt(1/tau_ij[3,3])*eta*factor_eta}, s1z span = {2*factor_spin1*spin_bounds[0]}, s2z span = {2*factor_spin2*spin_bounds[1]}, beta span = {0.036*(210/snr)**2}, lambda span = {0.044*(210/snr)**2}")
@@ -275,7 +275,7 @@ if __name__ =='__main__':
         cmd += f"--grid-cartesian-npts {int(opts.points)} --skip-overlap"
         print(f"\t Generating grid\n{cmd}")
         os.system(cmd)
-        secondary_peak = get_secondary_mode_for_skylocation(float(P_inj.tref), P_inj.phi, P_inj.theta)
+        secondary_peak = get_reflected_mode_for_skylocation(float(P_inj.tref), P_inj.phi, P_inj.theta)
         beta_sec, lambda_sec = secondary_peak[0,2], secondary_peak[0,1]
         print(f"Secondary peak: lambda {lambda_sec}, beta {beta_sec}")
         if opts.include_reflected_mode:
