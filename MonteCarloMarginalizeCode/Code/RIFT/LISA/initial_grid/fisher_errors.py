@@ -4,6 +4,7 @@
 import numpy as np
 import RIFT.lalsimutils as lsu
 from RIFT.LISA.response.LISA_response import *
+from RIFT.LISA.utils.utils import *
 from argparse import ArgumentParser
 from scipy.interpolate import interp1d
 import os
@@ -135,8 +136,8 @@ def get_spin_error(eta, q, a1z, a2z, eta_error, beta_error, sigma_error):
         a1z = a1z + 0.001 * a1z
         a2z = a2z - 0.001 * a2z
     if round(a1z,3)==round(a2z,3)==0.0:
-        a1z = -0.01
-        a2z = -0.01
+        a1z = -0.4
+        a2z = 0.4
 
     c1 = sigma_error - eta_error/48 * (474*a1z*a2z)
     a1 = eta/48 * 474 * a2z
@@ -193,12 +194,12 @@ def get_error_bounds(P_inj, snr, psd_path):
     # Calculate fisher matrix
     tau_ij, inv_tau_ij = get_fisher_matrix(Mc, eta, sigma, beta, fvals, psd_vals, deltaF, wf)
     if eta < 0.24:
-        factor_eta = 18
+        factor_eta = 30
     if eta >=0.24: # the errors estimates seem to be large for q~1 case.
-        factor_eta = 1.0
-    factor_mc = 55
-    factor_spin1 = 80
-    factor_spin2 = 80
+        factor_eta = 2.5
+    factor_mc = 100
+    factor_spin1 = 160
+    factor_spin2 = 160
     spin_bounds = get_spin_error(eta, q, P_inj.s1z, P_inj.s2z, (np.sqrt(1/tau_ij[3,3]))*eta, np.sqrt(1/tau_ij[4,4]), np.sqrt(1/tau_ij[5,5]))
     
     print(f"Mc span = {2*factor_mc*np.sqrt(1/tau_ij[2,2])*mc}, eta span = {2*np.sqrt(1/tau_ij[3,3])*eta*factor_eta}, s1z span = {2*factor_spin1*spin_bounds[0]}, s2z span = {2*factor_spin2*spin_bounds[1]}, beta span = {0.036*(210/snr)**2}, lambda span = {0.044*(210/snr)**2}")
@@ -213,7 +214,7 @@ def get_error_bounds(P_inj, snr, psd_path):
     if s1z_min <= -1.0:
         s1z_min = -0.999999
     if s1z_max >= 1.0:
-        s1_max = 0.999999
+        s1z_max = 0.999999
     s2z_min, s2z_max =  P_inj.s2z - factor_spin2*spin_bounds[1], P_inj.s2z + factor_spin2*spin_bounds[1]
     if s2z_min <= -1.0:
         s2z_min = -0.999999
@@ -262,9 +263,10 @@ if __name__ =='__main__':
     mc_span, eta_span = (error_bounds[1] - error_bounds[0]), (error_bounds[3] - error_bounds[2])
     s1z_span, s2z_span =  (error_bounds[5] - error_bounds[4]), (error_bounds[7] - error_bounds[6])
     beta_span, lambda_span =  (error_bounds[9] - error_bounds[8]), (error_bounds[11] - error_bounds[10])
+    secondary_peak = get_reflected_mode_for_skylocation(float(P_inj.tref), P_inj.phi, P_inj.theta)
+    beta_sec, lambda_sec = secondary_peak[0,2], secondary_peak[0,1]
+    print(f"Reflected peak: lambda {lambda_sec}, beta {beta_sec}")
     if opts.generate_grid:
-        import os
-        from RIFT.LISA.utils.utils import *
         cmd = f"util_ManualOverlapGrid.py --inj {opts.inj} "
         cmd += f"--parameter mc --parameter-range '[{error_bounds[0]:0.2f}, {error_bounds[1]:0.2f}]' "
         cmd += f"--parameter eta --parameter-range '[{error_bounds[2]:0.5f}, {error_bounds[3]:0.5f}]' "
@@ -275,9 +277,6 @@ if __name__ =='__main__':
         cmd += f"--grid-cartesian-npts {int(opts.points)} --skip-overlap"
         print(f"\t Generating grid\n{cmd}")
         os.system(cmd)
-        secondary_peak = get_reflected_mode_for_skylocation(float(P_inj.tref), P_inj.phi, P_inj.theta)
-        beta_sec, lambda_sec = secondary_peak[0,2], secondary_peak[0,1]
-        print(f"Secondary peak: lambda {lambda_sec}, beta {beta_sec}")
         if opts.include_reflected_mode:
             os.system('mv overlap-grid.xml.gz overlap-grid-primary.xml.gz')
 
