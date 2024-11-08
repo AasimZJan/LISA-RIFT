@@ -111,6 +111,25 @@ def create_PSD_injection_figure(data_dict, psd, injection_save_path, snr):
 
     # save
     plt.savefig(injection_save_path + "/injection-psd.png", bbox_inches = "tight")
+    plt.cla()
+
+
+    # plot in time domain
+    plt.xlabel("Time [days]")
+    plt.ylabel("h(t)")
+    for channel in channels:
+        TD_data = lsu.DataInverseFourier(data_dict[channel])
+        tvals = np.arange(0, TD_data.data.length, 1) * TD_data.deltaT/3600/24
+        # Fourier convention is different, so reverse time
+        tvals = tvals[::-1]
+        # The frequency serires should be double sided to yield a REAL time series. Here we instead take 2*real part.
+        plt.plot(tvals, 2*TD_data.data.data.real, label = channel, linewidth = 1.2)
+    
+    plt.legend(loc="upper right")
+    plt.grid(alpha = 0.5)
+    
+    # save
+    plt.savefig(injection_save_path + "/injection-TD.png", bbox_inches = "tight")
 
 
 def generate_lisa_TDI_dict(param_dict):
