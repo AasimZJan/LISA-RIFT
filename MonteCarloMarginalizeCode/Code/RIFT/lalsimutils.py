@@ -4676,16 +4676,16 @@ def create_hlmoft_from_NRhdf5(path_to_hdf5, P, lmax = None, only_mode = None, ta
 
     	# hp - 1j*hc = hlm
         max_Re, max_Im = np.max(np.real(wf_data)), -np.max(np.imag(wf_data))
-        print(f"Reading mode {modes[i]}, max for this mode: {max_Re, max_Im}")
 
     	# Create a COMPLEX16TimeSeries to save this mode.
         wf = lal.CreateCOMPLEX16TimeSeries("hlm", 0, 0, P.deltaT, lal.DimensionlessUnit, len(wf_data))
         wf.data.data = wf_data
+        print(f"Reading mode {modes[i]}, max for this mode: {max_Re, max_Im}, duration: {wf.data.length * wf.deltaT}")
 
         # Is resizing requested?
         if resize:
             # Assert if the actual length of the waveform is smaller than what is requested for resizing
-            assert wf.data.length * wf.deltaT <= TDlen, f"Length of the waveform = {wf.data.length*P.deltaT} s is longer than what you requested = {TDlen*P.deltaT} s. Decrease your deltaF to prevent this error."
+            assert wf.data.length * wf.deltaT <= TDlen * wf.deltaT, f"Length of the waveform = {wf.data.length*P.deltaT} s is longer than what you requested = {TDlen*P.deltaT} s. Decrease your deltaF to prevent this error."
             hlm[modes[i][0],modes[i][1]]  = lal.ResizeCOMPLEX16TimeSeries(wf, 0, TDlen)
         else:
             hlm[modes[i][0],modes[i][1]] = wf
