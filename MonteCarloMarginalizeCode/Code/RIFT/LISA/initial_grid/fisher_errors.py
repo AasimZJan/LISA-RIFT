@@ -194,12 +194,12 @@ def get_error_bounds(P_inj, snr, psd_path):
     # Calculate fisher matrix
     tau_ij, inv_tau_ij = get_fisher_matrix(Mc, eta, sigma, beta, fvals, psd_vals, deltaF, wf)
     if eta < 0.24:
-        factor_eta = 30
+        factor_eta = 20
     if eta >=0.24: # the errors estimates seem to be large for q~1 case.
         factor_eta = 2.5
-    factor_mc = 100
-    factor_spin1 = 160
-    factor_spin2 = 160
+    factor_mc = 60
+    factor_spin1 = 80
+    factor_spin2 = 60
     spin_bounds = get_spin_error(eta, q, P_inj.s1z, P_inj.s2z, (np.sqrt(1/tau_ij[3,3]))*eta, np.sqrt(1/tau_ij[4,4]), np.sqrt(1/tau_ij[5,5]))
     
     print(f"Mc span = {2*factor_mc*np.sqrt(1/tau_ij[2,2])*mc}, eta span = {2*np.sqrt(1/tau_ij[3,3])*eta*factor_eta}, s1z span = {2*factor_spin1*spin_bounds[0]}, s2z span = {2*factor_spin2*spin_bounds[1]}, beta span = {0.036*(210/snr)**2}, lambda span = {0.044*(210/snr)**2}")
@@ -212,14 +212,14 @@ def get_error_bounds(P_inj, snr, psd_path):
         eta_max = 0.249999999999999999999
     s1z_min, s1z_max =  P_inj.s1z - factor_spin1*spin_bounds[0], P_inj.s1z + factor_spin1*spin_bounds[0]
     if s1z_min <= -1.0:
-        s1z_min = -0.999999
+        s1z_min = -0.9
     if s1z_max >= 1.0:
-        s1z_max = 0.999999
+        s1z_max = 0.9
     s2z_min, s2z_max =  P_inj.s2z - factor_spin2*spin_bounds[1], P_inj.s2z + factor_spin2*spin_bounds[1]
     if s2z_min <= -1.0:
-        s2z_min = -0.999999
+        s2z_min = -0.9
     if s2z_max >= 1.0:
-        s2z_max = 0.999999
+        s2z_max = 0.9
     beta_min, beta_max = P_inj.theta - 0.018*(210/snr), P_inj.theta + 0.018*(210/snr)
     if beta_min <= -np.pi/2:
         beta_min = -np.pi/2
