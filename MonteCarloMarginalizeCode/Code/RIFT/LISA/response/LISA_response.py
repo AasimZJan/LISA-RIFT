@@ -105,18 +105,13 @@ def create_real_strain_from_double_sided_frequency_series(frequency_series, retu
     return lsu.DataInverseFourier(hf)
 
 def convert_AET_from_FD_to_TD(data_dict_in_FD):
-    """
-    Converts the gravitational wave data for channels A, E, and T 
-    from the frequency domain (FD) to the time domain (TD).
+    """Converts the gravitational wave data for channels A, E, and T from the frequency domain (FD) to the time domain (TD).
 
     Args:
-        data_dict_in_FD (dict): A dictionary containing frequency-domain data
-                                for channels 'A', 'E', and 'T' (as COMPLEX16FrequencySeries).
+        data_dict_in_FD (dict): A dictionary containing frequency-domain datafor channels 'A', 'E', and 'T' (as COMPLEX16FrequencySeries).
 
-    Returns:
-        dict: A dictionary containing time-domain data for channels 'A', 'E', and 'T'.
-              (as COMPLEC16TimeSeries).
-    """
+    Output:
+        dict: A dictionary containing time-domain data for channels 'A', 'E', and 'T' (as COMPLEX16TimeSeries)."""
     A_TD = lsu.DataInverseFourier(data_dict_in_FD['A'])
     A_TD.data.data.real *= 2
     A_TD.data.data.imag = np.zeros(A_TD.data.length)
