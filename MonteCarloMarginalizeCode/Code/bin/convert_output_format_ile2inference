@@ -55,7 +55,7 @@ if opts.export_cosmology:
         return astropy.cosmology.z_at_value(cosmo.luminosity_distance, dist_Mpc*u.Mpc)
     if opts.use_interpolated_cosmology:
         from scipy import interpolate
-        zvals = np.arange(0,20,0.0025)   # Note hardcoded maximum redshift
+        zvals = np.arange(0,30,0.0025)   # Note hardcoded maximum redshift (changed from 20 for LISA)
         dvals = np.zeros(len(zvals))
         for indx in np.arange(len(zvals)):
             dvals[indx]  = float(cosmo.luminosity_distance(zvals[indx])/u.Mpc)
