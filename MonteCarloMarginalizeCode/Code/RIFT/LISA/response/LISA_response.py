@@ -104,6 +104,30 @@ def create_real_strain_from_double_sided_frequency_series(frequency_series, retu
         return lsu.DataInverseFourier(hf), hf
     return lsu.DataInverseFourier(hf)
 
+def convert_AET_from_FD_to_TD(data_dict_in_FD):
+    """Converts the gravitational wave data for channels A, E, and T from the frequency domain (FD) to the time domain (TD).
+
+    Args:
+        data_dict_in_FD (dict): A dictionary containing frequency-domain datafor channels 'A', 'E', and 'T' (as COMPLEX16FrequencySeries).
+
+    Output:
+        dict: A dictionary containing time-domain data for channels 'A', 'E', and 'T' (as COMPLEX16TimeSeries)."""
+    A_TD = lsu.DataInverseFourier(data_dict_in_FD['A'])
+    A_TD.data.data.real *= 2
+    A_TD.data.data.imag = np.zeros(A_TD.data.length)
+
+    E_TD = lsu.DataInverseFourier(data_dict_in_FD['E'])
+    E_TD.data.data.real *= 2
+    E_TD.data.data.imag = np.zeros(E_TD.data.length)
+    
+    T_TD = lsu.DataInverseFourier(data_dict_in_FD['T'])
+    T_TD.data.data.real *= 2
+    T_TD.data.data.imag = np.zeros(T_TD.data.length)
+
+    data_dict_in_TD = {'A':A_TD, 'E':E_TD, 'T':T_TD}
+
+    return data_dict_in_TD
+
 def transformed_Hplus_Hcross(beta, lamda, psi, theta, phiref, l, m):
     """This function transforms the plus and cross polarization from wave frame to SSB frame.
         Args: 

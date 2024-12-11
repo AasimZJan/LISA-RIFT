@@ -4693,8 +4693,8 @@ def create_hlmoft_from_NRhdf5(path_to_hdf5, P, lmax = None, only_mode = None, ta
     # Always taper the modes
     taper = True 
     if taper:
-        ntaper = int(taper_percent/100*TDlen)  
-        ntaper = np.max([ntaper, int(1./(P.fmin*P.deltaT))]) 
+        ntaper = int(taper_percent/100*TDlen) 
+        #ntaper = np.max([ntaper, int(1./(P.fmin*P.deltaT))]) # sometimes you want less tapering due to short NR waveforms, rely on users to provide sensible values 
         vectaper= 0.5 - 0.5*np.cos(np.pi*np.arange(ntaper)/(1.*ntaper))
         # Taper at the start of the segment
         for mode in hlm:
