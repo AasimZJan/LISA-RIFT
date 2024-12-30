@@ -268,11 +268,8 @@ parser.add_argument("--search-reflected-sky-mode", default=False, help="Use the 
 parser.add_argument("--search-reflected-sky-mode-iteration", default=None, help="Iteration at which the code should search for reflected mode, if None will search and n-2th iteration")
 parser.add_argument("--lisa-reference-time", default=None, help="LISA reference time")
 parser.add_argument("--check-posterior-railing", default=False, help="Checks the railing of the posterior and if it finds it it broadens the prior ranges")
-parser.add_argument("--check-posterior-railing-iteration", default=None, help="Iteration at which the code should check for raling, if None it will check at third to last iteration")
-parser.add_argument("--railing-cip-file", type=str, help="filname of the CIP *.sub file. check-posterior-railing parameter")
-parser.add_argument("--railing-puff-factor", type=float, default=0.2, help="Puff factor for the updated bound. check-posterior-railing parameter")
-parser.add_argument("--railing-p", type=float, default=0.1, help="Probability in which we consider railing. check-posterior-railing parameter")
-parser.add_argument("--railing-parameter", action='append', help="List of parameters that we want to check the railing of. check-posterior-railing parameter")
+parser.add_argument("--check-posterior-railing-iteration", default=None, help="Iteration at which the code should check for raling, if None it will check at second to last iteration")
+parser.add_argument("--railing-parameters", action='append', help="List of parameters that we want to check the railing of. check-posterior-railing parameter")
 opts=  parser.parse_args()
 
 
@@ -1079,6 +1076,7 @@ if opts.search_reflected_sky_mode and int(opts.n_iterations) > 1:
    reflected_mode_job.write_sub_file()
 
 if opts.check_posterior_railing and int(opts.n_iterations) > 1:
+   import glob
    railing_exe = which("check_posterior_railing")
    if opts.check_posterior_railing:
    	railing_iter = int(opts.check_posterior_railing_iteration)
@@ -1086,8 +1084,9 @@ if opts.check_posterior_railing and int(opts.n_iterations) > 1:
    	railing_iter = int(opts.n_iterations) - 3
    if railing_iter <= 0:
    	railing_iter = int(opts.n_iterations) - 1
-   railing_args = f"--cip-file {opts.railing_cip_file} --posterior-file posterior_samples-{railing_iter}.dat --parameter {opts.railing_parameter} --p {opts.railing_p}" 
-   railing_job, railing_mode_job_name = dag_utils.write_convert_sub(tag='railing',log_dir=None,arg_str=railing_args,file_input=opts.working_directory+f'/posterior_samples-{railing_iter}.xml.gz,{opts.railing_cip_file}',file_output=opts.railing_cip_file,out_dir=opts.working_directory,exe=railing_exe,universe=local_worker_universe,no_grid=no_worker_grid)
+   CIP_files = glob.glob(f'{opts.working_directory}/CIP*.sub')
+   railing_args = f"--cip-files {CIP_files} --posterior-file posterior_samples-{railing_iter}.dat --parameter {opts.railing_parameter}" 
+   railing_job, railing_mode_job_name = dag_utils.write_convert_sub(tag='railing',log_dir=None,arg_str=railing_args,file_input=opts.working_directory+f'/posterior_samples-{railing_iter}.xml.gz,{",".join(CIP_files)}',file_output=",".join(CIP_files),out_dir=opts.working_directory,exe=railing_exe,universe=local_worker_universe,no_grid=no_worker_grid)
    railing_job.add_condor_cmd("initialdir",opts.working_directory+"/iteration_$(macroiteration)_cip")
    railing_job.set_log_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/railing-$(cluster)-$(process).log")
    railing_job.set_stderr_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/railing--$(cluster)-$(process).err")
@@ -1646,7 +1645,7 @@ for it in np.arange(it_start,opts.n_iterations):
     	reflected_mode_node.set_retry(opts.general_retries)
     	dag.add_node(reflected_mode_node)
     	parent_fit_node=reflected_mode_node
-        
+
     if opts.check_posterior_railing and it == railing_iter-1:
         railing_node=pipeline.CondorDAGNode(railing_job)
         railing_node.add_macro("macroiteration", it)

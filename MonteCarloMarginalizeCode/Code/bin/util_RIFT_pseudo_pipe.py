@@ -298,6 +298,9 @@ parser.add_argument("--force-cip-neff", default=None, help="Force neff for inter
 parser.add_argument("--cip-request-disk", default="10M", help="Request disk for CIP, will need around 20M for when all.net had  >10^5 points")
 parser.add_argument("--search-reflected-sky-mode", default=False, help="Use the transformation relation between reflected and true sky mode.")
 parser.add_argument("--search-reflected-sky-mode-iteration", default=None, help="Iteration at which the code should search for reflected mode, if None will search and n-2th iteration")
+parser.add_argument("--check-posterior-railing", default=False, help="Checks the railing of the posterior and if it finds it it broadens the prior ranges")
+parser.add_argument("--check-posterior-railing-iteration", default=None, help="Iteration at which the code should check for raling, if None it will check at third to last iteration")
+parser.add_argument("--railing-parameters", default="[mc, eta, s1z, s2z]", help="List of parameters that we want to check the railing of parameter")
 opts=  parser.parse_args()
 
 
@@ -1324,7 +1327,12 @@ if opts.LISA and opts.search_reflected_sky_mode:
     cmd += f" --search-reflected-sky-mode True --lisa-reference-time {opts.lisa_reference_time} "
     # if the user has not provided the iteration, the code decides it to be (n-2)th iteration
     if not(opts.search_reflected_sky_mode_iteration is None):
-    	cmd += f" --search-reflected-sky-mode-iteration {opts.search_reflected_sky_mode_iteration} " 
+    	cmd += f" --search-reflected-sky-mode-iteration {opts.search_reflected_sky_mode_iteration} "
+if opts.check_posterior_railing_iteration: 
+    cmd += f" --check-posterior-railing-iteration True --railing-parameters {opts.railing_parameters} "
+    if not(opts.check_posterior_railing_iteration is None):
+    	cmd += f" --check-posterior-railing-iteration {opts.check_posterior_railing_iteration}"
+
 if opts.assume_matter or opts.assume_eccentric:
     cmd +=  " --convert-args `pwd`/helper_convert_args.txt "
 if not(opts.ile_runtime_max_minutes is None):
