@@ -1085,7 +1085,7 @@ if opts.check_posterior_railing and int(opts.n_iterations) > 1:
    if railing_iter <= 0:
    	railing_iter = int(opts.n_iterations) - 1
    CIP_files = glob.glob(f'{opts.working_directory}/CIP*.sub')
-   railing_args = f"--cip-files {CIP_files} --posterior-file posterior_samples-{railing_iter}.dat --railing-parameters {opts.railing_parameters}" 
+   railing_args = f"--cip-files {CIP_files} --posterior-file {opts.working_directory}/posterior_samples-{railing_iter}.dat --railing-parameters {opts.railing_parameters}" 
    railing_job, railing_mode_job_name = dag_utils.write_convert_sub(tag='railing',log_dir=None,arg_str=railing_args,file_input="",file_output=",".join(CIP_files),out_dir=opts.working_directory,exe=railing_exe,universe=local_worker_universe,no_grid=no_worker_grid)
    railing_job.add_condor_cmd("initialdir",opts.working_directory+"/iteration_$(macroiteration)_cip")
    railing_job.set_log_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/railing-$(cluster)-$(process).log")
