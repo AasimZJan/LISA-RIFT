@@ -1,6 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env/ python
 import numpy as np
-import matplotlib.pyplot as plt
 import re
 from argparse import ArgumentParser
 
@@ -8,11 +7,11 @@ __author__ = "Marçal Font"
 
 parser = ArgumentParser()
 
-parser.add_argument("--cip-file", type=str, help="filname of the CIP *.sub file")
-parser.add_argument("--posterior-file", type=str, help="filname of the posterior *.dat file")
-parser.add_argument("--puff-factor", type=float, default=0.2, help="Puff factor for the updated bound")
-parser.add_argument("--p", type=float, default=0.1, help="Probability in which we consider railing")
-parser.add_argument("--parameter", action='append', help="List of parameters that we want to check the railing of")
+parser.add_argument("--cip-files", help="filname of the CIP *.sub file") # get this from create_event_parameter_pipeline, use all CIPs
+parser.add_argument("--posterior-file", type=str, help="filname of the posterior *.dat file") # get the iteration from pseduo-pipe which will enable  create_event_parameter_pipeline to pass the posterior
+parser.add_argument("--puff-factor", type=float, default=0.2, help="Puff factor for the updated bound") # use default
+parser.add_argument("--p", type=float, default=0.005, help="Probability in which we consider railing") # use default
+parser.add_argument("--railing-parameters", help="List of parameters that we want to check the railing of") # get from pseduo-pipe as a list
 #default=['mc','eta','s1z','s2z','ra','dec'] doesn't get removed when I add parameters
 
 
@@ -20,7 +19,6 @@ parser.add_argument("--parameter", action='append', help="List of parameters tha
 opts = parser.parse_args()
 
 #Define physical/hard bounds dictionary
-
 hard_bounds_dict = {
     'mc': [0,np.inf],
     'eta': [0.01,0.25],
@@ -31,13 +29,13 @@ hard_bounds_dict = {
 
 }
 
-def check_bounds(samples, p=0.1, puff_factor=0.2, forced_bounds=[-np.inf,np.inf]):
+def check_bounds(samples, p=0.005, puff_factor=0.2, forced_bounds=[-np.inf,np.inf]):
     """
     Adjusts the range of a prior distribution based on the railing of the input posterior distribution
 
     Args:
         samples (array-like): The samples of the posterior distribution of which the railing has to be checked.
-        p (float, optional): Threshold probability for detecting railing conditions. Default is 0.1.
+        p (float, optional): Threshold probability for detecting railing conditions. Default is 0.005.
         puff_factor (float, optional): Factor to expand the prior range when a railing condition is detected. Default is 0.2.
         forced_bounds (list of float, optional): The minimum and maximum allowed bounds for the prior range, usually the physical bounds of the magnitude. Default is [-np.inf, np.inf].
 
@@ -182,6 +180,22 @@ def update_bounds(file, parameters, p=0.1, puff_factor=0.2, hard_bounds=hard_bou
         new_bounds_dict[param]=check_bounds(data_here, p, puff_factor, hard_bounds[param]) #Other parameters of check_bounds would go here and would be needed in update_bounds()
     return new_bounds_dict
 
+def convert_to_list(params_raw):
+    """
+    Converts a string containing comma-separated strings enclosed in square brackets into a Python list.
+
+    Args:
+        params_raw (str): A string in the format "[str1,str2,...,strN]" where values are separated by commas.
+
+    Returns:
+        list: A list of strings where each element is a value from the input string.
+    """
+    # remove the bracets
+    params_raw_new = params_raw.replace("[","")
+    params_raw_new = params_raw_new.replace("]","")
+    # convert to list
+    params_raw_new_list = params_raw_new.split(",")
+    return(params_raw_new_list)
 """
 mean=40
 std=2
@@ -195,13 +209,19 @@ parameter = {mc,eta,a1z}
 file = 'CIP_worker.sub'
 """
 
+print(f"CIP files : {opts.cip_files}")
+# Load the CIP file and get the current parameter ranges
+for cip_file in opts.cip_files:
+    print(f"Reading CIP file {cip_file}")
+    old_bounds = load_cip(cip_file)
+    print(f"Old bounds: {old_bounds}")
 
-#Load the CIP file and get the actual parameter ranges
-old_bounds = load_cip(opts.cip_file)
-print(f"Old bounds: {old_bounds}")
-#Check the railing and obtain the bounds for the desired parameters
-print(opts.parameter)
-new_bounds = update_bounds(opts.posterior_file, opts.parameter)
-print(f"New bounds: {new_bounds}")
-#Change the CIP file
-print(f"CIP file UPDATED")
+    # Convert the user defined parameter list to a python list
+    param_list = convert_to_list(opts.railing_parameters)
+    print(param_list)
+    # Check if the posterior is railing and update those bounds
+    new_bounds = update_bounds(opts.posterior_file, param_list)
+    print(f"New bounds: {new_bounds}")
+    # Updae the CIP file
+    print(f"UPDATED CIP file {cip_file}")
+    change_cip(cip_file, new_bounds)
