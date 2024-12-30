@@ -1328,8 +1328,8 @@ if opts.LISA and opts.search_reflected_sky_mode:
     # if the user has not provided the iteration, the code decides it to be (n-2)th iteration
     if not(opts.search_reflected_sky_mode_iteration is None):
     	cmd += f" --search-reflected-sky-mode-iteration {opts.search_reflected_sky_mode_iteration} "
-if opts.check_posterior_railing_iteration: 
-    cmd += f" --check-posterior-railing-iteration True --railing-parameters {opts.railing_parameters} "
+if opts.check_posterior_railing:
+    cmd += f" --check-posterior-railing True --railing-parameters {opts.railing_parameters} "
     if not(opts.check_posterior_railing_iteration is None):
     	cmd += f" --check-posterior-railing-iteration {opts.check_posterior_railing_iteration}"
 
