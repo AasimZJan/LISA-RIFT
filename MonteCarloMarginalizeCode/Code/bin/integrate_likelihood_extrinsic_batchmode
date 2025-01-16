@@ -1553,6 +1553,10 @@ def analyze_event_LISA(P_list, indx_event, data_dict, psd_dict, fmax, opts, inv_
       else:
             samples["latitude"] = samples["declination"]
             samples["longitude"] = samples["right_ascension"]
+      # temporary solution to save skylocation parameters in the extrinsic samples
+      samples["right_ascension"] = numpy.ones(len(samples['psi']))*lisa_sky_lamda
+      samples["declination"] = numpy.ones(len(samples['psi']))*lisa_sky_beta
+      #
       if "log_integrand" in samples:
         samples["loglikelihood"] = samples["log_integrand"] +  manual_avoid_overflow_logarithm
       else:
