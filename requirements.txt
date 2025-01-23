@@ -18,3 +18,7 @@ precession
 ligo.skymap
 gwpy
 romspline
+natsort
+scipy
+htcondor
+pyseobnr
