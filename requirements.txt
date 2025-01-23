@@ -21,4 +21,3 @@ romspline
 natsort
 scipy
 htcondor
-pyseobnr
