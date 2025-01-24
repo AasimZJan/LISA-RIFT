@@ -4731,16 +4731,17 @@ def hlmoff_for_LISA(P, Lmax=4, modes=None, fd_standoff_factor=0.964, fd_alignmen
             print(" Warning: fd alignment postevent time requested incompatible with short duration ", file=sys.stderr)
     
     if path_to_NR_hdf5 is not None:
-        hlms_struct =  create_hlmoft_from_NRhdf5(path_to_NR_hdf5, P, Lmax, only_mode=modes, taper_percent = NR_taper_percent, verbose = True)
+        hlms_struct =  create_hlmoft_from_NRhdf5(path_to_NR_hdf5, P, Lmax, only_mode=modes, taper_percent = NR_taper_percent, verbose = True) # tapering performed there
         hlmsdict = {}
         for mode in hlms_struct:
             hlmsdict[mode] = DataFourier(hlms_struct[mode])
         return hlmsdict
 
     if P.approx == "SEOBNRv5EHM":
-    	import RIFT.physics.GWSignal as rgws
-    	hlmsdict = rgws.hlmoff(P,Lmax,approx_string=P.approx,**extra_waveform_kwargs)
-    	return hlmsdict
+        import RIFT.physics.GWSignal as rgws
+        hlms_struct = rgws.hlmoff(P,Lmax,approx_string=P.approx,**kwargs) # added tapering there
+        hlmsdict = SphHarmFrequencySeries_to_dict(hlms_struct, Lmax, modes)
+        return hlmsdict
 
     if P.approx == lalIMRPhenomHM or P.approx == lalIMRPhenomXPHM or P.approx == lalIMRPhenomXHM:
         # call lalsimulation function
@@ -4754,7 +4755,7 @@ def hlmoff_for_LISA(P, Lmax=4, modes=None, fd_standoff_factor=0.964, fd_alignmen
         return hlmsdict
 
     if P.approx == lalNRHybSur3dq8 or P.approx == lalIMRPhenomD: # will resize such that deltaF = 1/TDlen
-        hlms_struct = hlmoff(P, Lmax=Lmax)
+        hlms_struct = hlmoff(P, Lmax=Lmax)  # tapering performed in hlmoft
         hlmsdict = SphHarmFrequencySeries_to_dict(hlms_struct, Lmax, modes)
         # Resize it such that deltaF = 1/TDlen
         for mode in hlmsdict:
