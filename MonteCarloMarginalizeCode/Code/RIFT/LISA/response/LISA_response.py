@@ -367,8 +367,8 @@ def get_tf_from_phase_dict(hlm, fmax, fref=None, debug=True, shift=True):#tested
             time[:kmin] = time[kmin]
             time[kmax:] = time[kmax]
         except:
-            print(f"No data for {mode}")
-            pass
+            print(f"\tNo data for {mode}")
+            pass # don't save that mode's information
         # saving data
         tf_dict[mode] = time 
         freq_dict[mode] = freq[::-1]
