@@ -374,6 +374,8 @@ parser.add_argument("--s1z-range", default=None, help="s1z range")
 parser.add_argument("--s2z-range", default=None, help="s2z range")
 parser.add_argument("--beta-range",default=None, help="beta range" )
 parser.add_argument("--lambda-range",default=None, help="lambda range")
+parser.add_argument("--eccentricity-range",default=None, help="eccentricity range")
+parser.add_argument("--meanPerAno-range",default=None, help="meanPerAno range")
 opts=  parser.parse_args()
 if not(opts.no_adapt_parameter):
     opts.no_adapt_parameter =[] # needs to default to empty list
@@ -886,6 +888,7 @@ prior_map  = { "mtot": M_prior, "q":q_prior, "s1z":s_component_uniform_prior, "s
     's2z_bar':normalized_zbar_prior,
     # Other priors
     'eccentricity':eccentricity_prior,
+    'meanPerAno':mcsampler.uniform_samp_phase,
     'chi_pavg':precession_prior,
     'mu1': unnormalized_log_prior,
     'mu2': unnormalized_uniform_prior,
@@ -908,6 +911,7 @@ prior_range_map = {"mtot": [1, 300], "q":[0.01,1], "s1z":[-0.999*chi_max,0.999*c
   'lambda_plus':[0.01,lambda_plus_max],
   'lambda_minus':[-lambda_max,lambda_max],  # will include the true region always...lots of overcoverage for small lambda, but adaptation will save us.
   'eccentricity':[ECC_MIN, ECC_MAX],
+  'meanPerAno':[0, 2*np.pi],
   'chi_pavg':[0.0,2.0],  
   # strongly recommend you do NOT use these as parameters!  Only to insure backward compatibility with LI results
   'LambdaTilde':[0.01,5000],
@@ -962,6 +966,12 @@ if not (opts.beta_range is None):
 if not (opts.lambda_range is None):
     print(f" Warning: Overriding default lambda range to {eval(opts.lambda_range)}. USE WITH CARE")
     prior_range_map['lambda']=eval(opts.lambda_range)
+if not (opts.eccentricity_range is None):
+    print(f" Warning: Overriding default eccentricity range to {eval(opts.eccentricity_range)}. USE WITH CARE")
+    prior_range_map['eccentricity']=eval(opts.eccentricity_range)
+if not (opts.meanPerAno_range is None):
+    print(f" Warning: Overriding default meanPerAno range to {eval(opts.meanPerAno_range)}. USE WITH CARE")
+    prior_range_map['meanPerAno']=eval(opts.meanPerAno_range)
 print("\n")
 ###
 ### Modify priors, as needed
@@ -1622,9 +1632,12 @@ if opts.input_tides:
         print(" Revised fit coord names (for lookup) : ", coord_names) # 'eos_table_index' will be overwritten here
         print(" Revised sampling coord names  : ", low_level_coord_names)
 # LISA
-elif opts.LISA:
+elif opts.LISA and not(opts.use_eccentricity):
     # shift by two due to two skylocation parameters being present in all.net for LISA
     col_lnL +=2
+elif opts.LISA and opts.use_eccentricity:
+    print(" Eccentricity input: [",ECC_MIN, ", ",ECC_MAX, "]")
+    col_lnL += 4
 elif opts.use_eccentricity:
     print(" Eccentricity input: [",ECC_MIN, ", ",ECC_MAX, "]")
     col_lnL += 1
@@ -1719,12 +1732,17 @@ for line in dat:
         P.lambda2 = line[10]
     if opts.input_eos_index:
         P.eos_table_index = line[11]
-    if opts.use_eccentricity:
+    if not(opts.LISA) and opts.use_eccentricity:
         P.eccentricity = line[9]
     # LISA skylocation
-    if opts.LISA:
+    if opts.LISA and not(opts.use_eccentricity):
         P.phi = line[9]
         P.theta = line[10]
+    if opts.LISA and opts.use_eccentricity:
+        P.phi = line[9]
+        P.theta = line[10]
+        P.eccentricity = line[11]
+        P.meanPerAno = line[12]
     if opts.input_distance:
         P.dist = lal.PC_SI*1e6*line[9]  # Incompatible with tides, note!
     

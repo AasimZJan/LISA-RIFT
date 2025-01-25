@@ -245,7 +245,8 @@ if __name__ =='__main__':
     parser.add_argument("--snr-fmin", help="fmin used in snr calculations", default=0.0001)
     parser.add_argument("--generate-grid", help="Use the fisherbounds to generate grid", default=True)
     parser.add_argument("--points", help="number of points in the grid", default=50000)
-    parser.add_argument("--include-reflected-mode", default=False, type=bool, help="Ask the code to include the reflected mode in the grid.")
+    parser.add_argument("--include-reflected-mode", action="store_true", help="Ask the code to include the reflected mode in the grid.")
+    parser.add_argument("--include-eccentricity", action="store_true", help="Include eccentricity and meanPerAno in grid generation")
     opts = parser.parse_args()
     print(f"Loading file:\n {opts.inj}")
     P_inj_list = lsu.xml_to_ChooseWaveformParams_array(opts.inj)
@@ -275,6 +276,9 @@ if __name__ =='__main__':
         cmd += f"--random-parameter theta --random-parameter-range '[{error_bounds[8]:0.6f}, {error_bounds[9]:0.6f}]' "
         cmd += f"--random-parameter phi --random-parameter-range '[{error_bounds[10]:0.6f}, {error_bounds[11]:0.6f}]' "
         cmd += f"--grid-cartesian-npts {int(opts.points)} --skip-overlap"
+        if opts.include_eccentricity:
+            cmd+= " --random-parameter eccentricity --random-parameter-range '[0.0, 0.5]' "
+            cmd+= " --random-parameter meanPerAno --random-parameter-range '[0,0.785]' "
         print(f"\t Generating grid\n{cmd}")
         os.system(cmd)
         if opts.include_reflected_mode:
@@ -288,6 +292,9 @@ if __name__ =='__main__':
             cmd += f"--random-parameter theta --random-parameter-range '[{beta_sec-0.5*beta_span}, {beta_sec+0.5*beta_span}]' "
             cmd += f"--random-parameter phi --random-parameter-range '[{lambda_sec-0.5*lambda_span}, {lambda_sec+0.5*lambda_span}]' "
             cmd += f"--grid-cartesian-npts {int(opts.points)} --skip-overlap"
+            if opts.include_eccentricity:
+                cmd+= " --random-parameter eccentricity --random-parameter-range '[0.0, 0.5]' "
+                cmd+= " --random-parameter meanPerAno --random-parameter-range '[0,0.785]' "
             print(f"\t Generating grid\n{cmd}")
             os.system(cmd)
             os.system('mv overlap-grid.xml.gz overlap-grid-secondary.xml.gz')

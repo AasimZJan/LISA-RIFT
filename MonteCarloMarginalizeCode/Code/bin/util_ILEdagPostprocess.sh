@@ -23,9 +23,9 @@ find ${DIR_PROCESS} -name 'CME*.dat' -exec cat {} \; > ${RND}_tmp.dat
 echo " Consolidating multiple instances of the monte carlo  .... "
 if [ "$3" == '--eccentricity' ]
 then
-    util_CleanILE.py ${RND}_tmp.dat $3 | sort -rg -k11 > $BASE_OUT.composite
+    util_CleanILE.py ${RND}_tmp.dat $3 | sort -rg -k14 > $BASE_OUT.composite
 else
-    util_CleanILE.py ${RND}_tmp.dat $3 | sort -rg -k10 > $BASE_OUT.composite
+    util_CleanILE.py ${RND}_tmp.dat $3 | sort -rg -k12 > $BASE_OUT.composite
 fi
 
 # Manifest

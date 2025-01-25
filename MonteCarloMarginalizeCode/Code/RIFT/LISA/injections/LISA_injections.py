@@ -143,10 +143,13 @@ def generate_lisa_TDI_dict(param_dict):
 
     P.deltaT, P.deltaF = param_dict["deltaT"], param_dict["deltaF"]
     P.fref = param_dict["wf-fref"]
-    P.approx = lalsimulation.GetApproximantFromString(param_dict["approx"])
+    if param_dict["approx"] == "SEOBNRv5EHM":
+        P.approx = param_dict["approx"]
+    else:
+        P.approx = lalsimulation.GetApproximantFromString(param_dict["approx"])
     P.fmin, P.fmax = param_dict["fmin"], 0.5/P.deltaT
     P.psi, P.phiref, P.inclination, P.tref, P.theta, P.phi = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    P.eccentricity, P.meanPerAno = 0.0, 0.0
+    P.eccentricity, P.meanPerAno = param_dict["eccentricity"], param_dict["meanPerAno"]
 
     modes = np.array(param_dict["modes"])
     lmax = np.max(modes[:,0])
@@ -167,7 +170,8 @@ def generate_lisa_TDI_dict(param_dict):
     print(f"\nWaveform is being generated with m1 = {P.m1/lsu.lsu_MSUN}, m2 = {P.m2/lsu.lsu_MSUN}, s1z = {P.s1z}, s2z = {P.s2z}, distance = {P.dist/1e6/lal.PC_SI}")
     print(f"deltaF = {P.deltaF}, fmin  = {P.fmin}, fmax = {P.fmax}, deltaT = {P.deltaT}, modes = {list(modes)}, lmax = {lmax}, tref = {param_dict['tref']}")
     print(f"phiref = {param_dict['phi_ref']}, psi = {param_dict['psi']}, inclination = {param_dict['inclination']}, beta = {param_dict['beta']}, lambda = {param_dict['lambda']}")
-    print(f"path_to_NR_hdf5 = {path_to_NR_hdf5}, approx = {lalsimulation.GetStringFromApproximant(P.approx)}\n")
+    print(f"eccentricity = {param_dict['eccentricity']}, meanPerAno =  {param_dict['meanPerAno']}")
+    print(f"path_to_NR_hdf5 = {path_to_NR_hdf5}, approx = {param_dict['approx']}\n")
     print("###############")
 
     hlmf = lsu.hlmoff_for_LISA(P, Lmax=lmax, modes=modes, path_to_NR_hdf5=path_to_NR_hdf5, NR_taper_percent=param_dict["NR_taper_percent"]) 
@@ -186,7 +190,8 @@ def generate_lisa_injections(data_dict, param_dict, get_snr = True):
               --parameter m2 --parameter-value {param_dict['m2']} \
               --parameter s1x --parameter-value 0.0 --parameter s1y --parameter-value 0.0 --parameter s1z --parameter-value {param_dict['s1z']} \
               --parameter s2x --parameter-value 0.0 --parameter s2y --parameter-value 0.0 --parameter s2z --parameter-value {param_dict['s2z']}  \
-              --parameter eccentricity --parameter-value 0 --approx {param_dict['approx']}  --parameter dist --parameter-value {param_dict['dist']}  \
+              --parameter eccentricity --parameter-value {param_dict['eccentricity']} --parameter meanPerAno --parameter-value {param_dict['meanPerAno']} \
+              --approx {param_dict['approx']}  --parameter dist --parameter-value {param_dict['dist']}  \
               --parameter fmin --parameter-value {param_dict['fmin']}  --parameter incl --parameter-value {param_dict['inclination']}  \
               --parameter tref --parameter-value {param_dict['tref']}  --parameter phiref --parameter-value {param_dict['phi_ref']}  \
               --parameter theta --parameter-value {param_dict['beta']}  --parameter phi --parameter-value  {param_dict['lambda']}   \

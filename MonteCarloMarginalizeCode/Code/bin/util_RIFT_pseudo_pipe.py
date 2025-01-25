@@ -294,6 +294,8 @@ parser.add_argument("--force-s1z-range", default=None, help="s1z range")
 parser.add_argument("--force-s2z-range", default=None, help="s2z range")
 parser.add_argument("--force-lambda-range", default=None, help="lambda range")
 parser.add_argument("--force-beta-range", default=None, help="beta range")
+parser.add_argument("--force-eccentricity-range", default=None, help="eccentricity range")
+parser.add_argument("--force-meanPerAno-range", default=None, help="meanPerAno range")
 parser.add_argument("--force-cip-neff", default=None, help="Force neff for intermediate steps, for really high SNRs you should request a high neff while asking for low number of samples (20 neff and 2 samples) per job")
 parser.add_argument("--cip-request-disk", default="10M", help="Request disk for CIP, will need around 20M for when all.net had  >10^5 points")
 parser.add_argument("--search-reflected-sky-mode", default=False, help="Use the transformation relation between reflected and true sky mode.")
@@ -1050,6 +1052,10 @@ for indx in np.arange(len(instructions_cip)):
         line +=" --beta-range " + str(opts.force_beta_range).replace(' ','')
     if not(opts.force_lambda_range is None) and opts.lisa_fixed_sky is False:
         line +=" --lambda-range " + str(opts.force_lambda_range).replace(' ','')
+    if not(opts.force_eccentricity_range is None):
+        line +=" --eccentricity-range " + str(opts.force_eccentricity_range).replace(' ','')
+    if not(opts.force_meanPerAno_range is None):
+        line +=" --meanPerAno-range " +str(opts.force_meanPerAno_range).replace(' ','')
     if not(opts.M_max_cut is None):
         line += " --M-max-cut {}".format(opts.M_max_cut) 
     if not(opts.allow_subsolar):
@@ -1148,7 +1154,9 @@ for indx in np.arange(len(instructions_cip)):
         line += " --fit-save-gp my_gp "  # fiducial filename, stored in each iteration
     if not(opts.lisa_fixed_sky): # fit and sample over sky location
         line += " --parameter lambda --parameter beta "
-    if opts.assume_eccentric:
+    if opts.assume_eccentric and opts.LISA:
+        line += " --parameter eccentricity --parameter meanPerAno  --use-eccentricity "
+    if opts.assume_eccentric and not(opts.LISA):
         if not(opts.internal_use_aligned_phase_coordinates):
             line = line.replace('parameter mc', 'parameter mc --parameter eccentricity --use-eccentricity')
         else:
@@ -1219,8 +1227,10 @@ puff_params = ' '.join(instructions_puff)
 if opts.assume_matter:
 #    puff_params += " --parameter LambdaTilde "  # should already be present
     puff_max_it +=5   # make sure we resolve the correlations
-if opts.assume_eccentric:
+if opts.assume_eccentric and not(opts.LISA):
         puff_params += " --parameter eccentricity --downselect-parameter eccentricity --downselect-parameter-range '[0,0.9]' "
+if opts.assume_eccentric and opts.LISA:
+        puff_params += f" --parameter eccentricity --downselect-parameter eccentricity --downselect-parameter-range {str(opts.force_eccentricity_range).replace(' ','')} --parameter meanPerAno --downselect-parameter meanPerAno --downselect-parameter-range {str(opts.force_meanPerAno_range).replace(' ','')} "
 if opts.assume_highq:
     puff_params = puff_params.replace(' delta_mc ', ' eta ')  # use natural coordinates in the high q strategy. May want to do this always
     puff_max_it +=3
