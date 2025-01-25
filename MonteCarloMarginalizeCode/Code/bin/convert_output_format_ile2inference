@@ -80,10 +80,11 @@ if opts.convention == 'LI':
       print( "eos_indx",end=' ')
   if opts.export_cosmology:
       print( " m1_source m2_source mc_source mtotal_source redshift ",end=' ')
+  if opts.export_eccentricity:
+      print( "eccentricity ",end=' ')
+      print( "meanPerAno ",end=' ')
   if opts.export_weights:
       print( " weights ", )
-  if opts.export_eccentricity:
-      print( "eccentricity ",)
   else:
       print('')
   for fname in args:
@@ -96,6 +97,7 @@ if opts.convention == 'LI':
 
     if opts.export_eccentricity:
         ecc = [row.alpha4 for row in points]
+        MPA = [row.alpha5 for row in points]
     
     wt = np.exp(like)*p/ps
     # remove nan wt - can happen for extrinsic output
@@ -175,6 +177,7 @@ if opts.convention == 'LI':
             print(wt[indx],end=' ')
         if opts.export_eccentricity:
             print(ecc[indx])
+            print(MPA[indx])
         else:
             print('')
 
@@ -192,10 +195,11 @@ if opts.export_eos:
       print( "eos_indx",end=' ')
 if opts.export_cosmology:
     print( " m1_source m2_source redshift ",end=' ')
+if opts.export_eccentricity:
+    print( "eccentricity ",end=' ')
+    print( "meanPerAno ",end=' ')
 if opts.export_weights:
     print( " weights ",end=' ')
-if opts.export_eccentricity:
-    print( "eccentricity ",)
 else:
     print('')
 for fname in args:
@@ -237,6 +241,7 @@ for fname in args:
 
     if opts.export_eccentricity:
         ecc = [row.alpha4 for row in points]
+        MPA = [row.alpha5 for row in points]
     
     wt = np.exp(like)*p/ps
 
@@ -275,10 +280,11 @@ for fname in args:
             m1_source = pt.mass1/(1+z)
             m2_source = pt.mass2/(1+z)
             print( m1_source, m2_source, z,end=' ')
+        if opts.export_eccentricity:
+            print(ecc[indx],end=' ')
+            print(MPA[indx],end=' ')
         if opts.export_weights:
             print(wt[indx],end=' ')
-        if opts.export_eccentricity:
-            print(ecc[indx],)
         else:
             print('')
 #    print pt.geocent_end_time + 1e-9* pt.geocent_end_time_ns, pt.coa_phase,  pt.inclination, pt.polarization, pt.longitude,pt.latitude, pt.distance, ind like[indx]

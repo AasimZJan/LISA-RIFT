@@ -1063,7 +1063,11 @@ def write_unify_sub_simple(tag='unify', exe=None, base=None,target=None,universe
     with open(cmdname,'w') as f:        
         f.write("#! /usr/bin/env bash\n")
         f.write( "ls " + base_str+"*.composite  1>&2 \n")  # write filenames being concatenated to stderr
-        f.write( exe +  base_str+ "*.composite \n")
+        f.write( exe +  base_str+ "*.composite")
+        if "eccentricity" in arg_str:
+            f.write(" --eccentricity\n")
+        else:
+            f.write("\n")
     st = os.stat(cmdname)
     import stat
     os.chmod(cmdname, st.st_mode | stat.S_IEXEC)
