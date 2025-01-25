@@ -1299,7 +1299,7 @@ def resample_samples_LISA(my_samples, rholms, cross_terms, right_ascension, decl
   # identifiy max lnL(t) point, and then interpolate around that point to avoid Nan weights.
   index_max_lnLt = np.argmax(lnLt[0]).flatten()
   tval_at_max = tvals[index_max_lnLt]
-  print(f"Identified max lnL(t) as {tval_at_max}s. Interpolating around that point.  Sampling for time from {tval_at_max + low_t_lim}s to {tval_at_max + high_t_lim}s with deltaT {delta_t}s.")
+  print(f"Identified max lnL(t) at {tval_at_max}s relative to reported time, interpolating around this time. Sampling for time from {tval_at_max + low_t_lim}s to {tval_at_max + high_t_lim}s with deltaT {delta_t}s.")
   
   # tvals over which we will resample
   interp_tvals  = xpy_default.arange(low_t_lim + tval_at_max, high_t_lim + tval_at_max, delta_t)
@@ -1553,9 +1553,9 @@ def analyze_event_LISA(P_list, indx_event, data_dict, psd_dict, fmax, opts, inv_
       else:
             samples["latitude"] = samples["declination"]
             samples["longitude"] = samples["right_ascension"]
-      # temporary solution to save skylocation parameters in the extrinsic samples
-      samples["right_ascension"] = numpy.ones(len(samples['psi']))*lisa_sky_lamda
-      samples["declination"] = numpy.ones(len(samples['psi']))*lisa_sky_beta
+      # temporary solution to save skylocation parameters in the extrinsic samples for LISA
+      samples["right_ascension"] = samples["longitude"] = numpy.ones(len(samples['psi']))*lisa_sky_lamda
+      samples["declination"] = samples["latitude"] = numpy.ones(len(samples['psi']))*lisa_sky_beta
       #
       if "log_integrand" in samples:
         samples["loglikelihood"] = samples["log_integrand"] +  manual_avoid_overflow_logarithm
