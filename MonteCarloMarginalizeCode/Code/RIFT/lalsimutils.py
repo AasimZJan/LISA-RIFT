@@ -331,7 +331,7 @@ def lsu_StringFromPNOrder(order):
 #
 # Class to hold arguments of ChooseWaveform functions
 #
-valid_params = ['m1', 'm2', 's1x', 's1y', 's1z', 's2x', 's2y', 's2z', 'chi1_perp', 'chi2_perp', 'chi1_perp_bar', 'chi2_perp_bar','chi1_perp_u', 'chi2_perp_u', 's1z_bar', 's2z_bar', 'lambda1', 'lambda2', 'theta','phi', 'phiref',  'psi', 'incl', 'tref', 'dist', 'mc', 'mc_ecc', 'eta', 'delta_mc', 'chi1', 'chi2', 'thetaJN', 'phiJL', 'theta1', 'theta2', 'cos_theta1', 'cos_theta2',  'theta1_Jfix', 'theta2_Jfix', 'psiJ', 'beta', 'cos_beta', 'sin_phiJL', 'cos_phiJL', 'phi12', 'phi1', 'phi2', 'LambdaTilde', 'DeltaLambdaTilde', 'lambda_plus', 'lambda_minus', 'q', 'mtot','xi','chiz_plus', 'chiz_minus', 'chieff_aligned','fmin','fref', "SOverM2_perp", "SOverM2_L", "DeltaOverM2_perp", "DeltaOverM2_L", "shu","ampO", "phaseO",'eccentricity','chi_pavg','mu1','mu2','eos_table_index']
+valid_params = ['m1', 'm2', 's1x', 's1y', 's1z', 's2x', 's2y', 's2z', 'chi1_perp', 'chi2_perp', 'chi1_perp_bar', 'chi2_perp_bar','chi1_perp_u', 'chi2_perp_u', 's1z_bar', 's2z_bar', 'lambda1', 'lambda2', 'theta','phi', 'phiref',  'psi', 'incl', 'tref', 'dist', 'mc', 'mc_ecc', 'eta', 'delta_mc', 'chi1', 'chi2', 'thetaJN', 'phiJL', 'theta1', 'theta2', 'cos_theta1', 'cos_theta2',  'theta1_Jfix', 'theta2_Jfix', 'psiJ', 'beta', 'cos_beta', 'sin_phiJL', 'cos_phiJL', 'phi12', 'phi1', 'phi2', 'LambdaTilde', 'DeltaLambdaTilde', 'lambda_plus', 'lambda_minus', 'q', 'mtot','xi','chiz_plus', 'chiz_minus', 'chieff_aligned','fmin','fref', "SOverM2_perp", "SOverM2_L", "DeltaOverM2_perp", "DeltaOverM2_L", "shu","ampO", "phaseO",'eccentricity', 'meanPerAno', 'chi_pavg','mu1','mu2','eos_table_index']
 
 tex_dictionary  = {
  "mtot": '$M$',
@@ -636,6 +636,10 @@ class ChooseWaveformParams:
         if  p == 'cos_beta':
             self.assign_param('beta',np.arccos(val))
             return self
+        if p == 'eccentricity':
+            self.eccentricity = val
+        if p == 'meanPerAno':
+            self.meanPerAno = val
         if p == 'lambda_plus':
             # Designed to give the benefits of sampling in chi_eff, without introducing a transformation/prior that depends on mass
             # Fixes chiz_minus by construction
@@ -1015,6 +1019,10 @@ class ChooseWaveformParams:
             return self.phi
         if p == 'cos_beta':
             return np.cos(self.extract_param('beta'))
+        if p == 'eccentricity':
+            return self.eccentricity
+        if p == 'meanPerAno':
+            return self.meanPerAno
         if p == 'lambda_plus':
             # Designed to give the benefits of sampling in chi_eff, without introducing a transformation/prior that depends on mass
             return (self.lambda1+self.lambda2)/2.
@@ -1569,6 +1577,7 @@ class ChooseWaveformParams:
         print( "reference orbital phase =", self.phiref)
         print( "polarization angle =", self.psi)
         print( "eccentricity = ", self.eccentricity)
+        print( "meanPerAno = ", self.meanPerAno)
         print( "time of coalescence =", float(self.tref),  " [GPS sec: ",  int(self.tref), ",  GPS ns ", (self.tref - int(self.tref))*1e9, "]")
         print( "detector is:", self.detector)
         if self.radec==False:
@@ -1660,6 +1669,7 @@ class ChooseWaveformParams:
         print( "reference orbital phase =", self.phiref)
         print( "polarization angle =", self.psi)
         print( "eccentricity = ", self.eccentricity)
+        print( "meanPerAno = ", self.meanPerAno)
         print( "reference time = ", float(self.tref), "(s)")
         print( "detector is: LISA")
         print( "ecliptic latitude (beta):", self.theta, "(radians)")
@@ -1828,7 +1838,7 @@ class ChooseWaveformParams:
         if hasattr(row, 'taper'):
             self.taper = lalsim.GetTaperFromString(str(row.taper))
         # FAKED COLUMNS (nonstandard)
-        self.lambda1 = row.alpha5
+        self.meanPerAno = row.alpha5
         self.lambda2 = row.alpha6
         self.eccentricity=row.alpha4
         self.snr = row.alpha3   # lnL info
@@ -1890,7 +1900,7 @@ class ChooseWaveformParams:
         row.taper = "TAPER_NONE"
         row.f_lower =self.fmin
         # NONSTANDARD
-        row.alpha5 = self.lambda1
+        row.alpha5 = self.meanPerAno
         row.alpha6 = self.lambda2
         row.alpha4 = self.eccentricity
         if self.eos_table_index:
