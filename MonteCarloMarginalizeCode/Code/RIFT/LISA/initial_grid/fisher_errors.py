@@ -278,7 +278,7 @@ if __name__ =='__main__':
         cmd += f"--grid-cartesian-npts {int(opts.points)} --skip-overlap"
         if opts.include_eccentricity:
             cmd+= " --random-parameter eccentricity --random-parameter-range '[0.0, 0.5]' "
-            cmd+= " --random-parameter meanPerAno --random-parameter-range '[0,0.785]' "
+            cmd+= " --random-parameter meanPerAno --random-parameter-range '[0,6.28318]' "
         print(f"\t Generating grid\n{cmd}")
         os.system(cmd)
         if opts.include_reflected_mode:
