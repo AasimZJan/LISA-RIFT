@@ -4714,7 +4714,7 @@ def create_hlmoft_from_NRhdf5(path_to_hdf5, P, lmax = None, only_mode = None, ta
 def hlmoff_for_LISA(P, Lmax=4, modes=None, fd_standoff_factor=0.964, fd_alignment_postevent_time=None, path_to_NR_hdf5=None, NR_taper_percent = 1, **kwargs):
     """
     Funtion that outputs the modes in frequency domain. Due to conditioning in hlmoft, it wasn't suitable for obtainging tf from phase. Takes in ChooseWaveformParams object to populate \
-    the waveform call from lalsimulation. Takes in Lmax and modes, defaults to Lmax of 2. Can only take in IMRPhenomHM, IMRPhenomXPHM, IMRPhenomXHM, 
+    the waveform call from lalsimulation. Takes in Lmax and modes, defaults to Lmax of 2.  
     Args:
         P: A ChooseWaveformParams object,
         Lmax: max l content in the hlm dictionary,
