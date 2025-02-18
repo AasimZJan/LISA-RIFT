@@ -12,7 +12,7 @@ from scipy.stats import gaussian_kde
 from collections import namedtuple
 import sys
 import RIFT.lalsimutils as lsu
-import corner
+from argparse import ArgumentParser
 # Matplotlib configuration
 plt.rcParams.update({
     'axes.labelsize': 16,
@@ -30,8 +30,18 @@ __author__ = "A. Jan"
 ###########################################################################################
 # Path and Configuration Setup
 ###########################################################################################
-path = sys.argv[1]
-LISA = True
+parser = ArgumentParser()
+parser.add_argument("--path", default = os.getcwd(), help =  "path to run directory")
+parser.add_argument("--LISA", action = "store_true", help = "Use this argument if analyzing a LISA run")
+parser.add_argument("--eccentricity", action = "store_true", help = "Use this argument if the run has eccentricity")
+opts = parser.parse_args()
+path = opts.path
+LISA = opts.LISA
+eccentricity = opts.eccentricity
+
+if eccentricity:
+    print("Eccentricity set to True")
+
 
 # Locate corner plot executable
 corner_plot_exe = os.popen("which plot_posterior_corner.py").read()[:-1]
@@ -81,9 +91,12 @@ def get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=
     error = data[:, 10]
     
     # Adjust columns if LISA is True
-    if LISA:
+    if LISA and not(eccentricity):
         lnL = data[:, 11]
         error = data[:, 12]
+    if LISA and eccentricity:
+        lnL = data[:,13]
+        error = data[:,14]
     
     # Remove NaN values from lnL
     total_points = len(lnL)
@@ -165,9 +178,10 @@ def get_index_for_parameter(parameter):
     Returns:
         int or None: The index of the parameter if found, otherwise None.
     """
+    # m1 m2 a1x a1y a1z a2x a2y a2z mc eta indx  Npts ra dec tref phiorb incl psi  dist p ps lnL mtotal q  eccentricity meanPerAno 
     parameter_indices = {
         "mc": 8,
-        "mtot": -2,
+        "mtot": 22,
         "a1z": 4,
         "s1z": 4,
         "a2z": 7,
@@ -175,9 +189,11 @@ def get_index_for_parameter(parameter):
         "eta": 9,
         "m1": 0,
         "m2": 1,
-        "q": -1,
+        "q": 23,
         "dec": 13,
-        "ra": 12
+        "ra": 12,
+        "eccentricity":24,
+        "meanPerAno":25,
     }
     
     return parameter_indices.get(parameter, None)  # Return None if parameter is not found
@@ -467,6 +483,9 @@ def plot_histograms(sorted_posterior_file_paths, plot_title, iterations = None, 
     if LISA:
         parameters.append("dec")
         parameters.append("ra")
+    if eccentricity:
+        parameters.append("eccentricity")
+        parameters.append("meanPerAno")
     for parameter in parameters:
         print(f"Plotting histogram for {parameter}")
         fig, ax = plt.subplots()
@@ -552,6 +571,10 @@ def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, para
     if LISA:
         plotting_command += "--LISA "
     
+    # Append eccentricity flag if applicable
+    if eccentricity:
+        plotting_command += "--eccentricity "
+    
     # avoid too much output
     plotting_command += " 2> /dev/null"
 
@@ -568,27 +591,6 @@ def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, para
         os.system(f"mv {parameter}.png plots/1_D_plots/{parameter}_{plot_title}.png")
         os.system(f"mv {parameter}_cum.png plots/1_D_plots/{parameter}_cum_{plot_title}.png") 
 
-def plot_exploration_corner(all_net_path):
-    """
-    Generates and saves a corner plot for all the points at which marginalized likelihood was evaluated, effectively acting as the exploration plot.
-
-    Args:
-        all_net_path (str): File path to all.net
-    """
-    print('\nPlotting exploration corner')
-    # Load all.net
-    data = np.loadtxt(all_net_path, usecols = [1,2,5,8,9,10])
-    # If else statement to check if truths are provided are not
-    if use_truths:
-        P = lsu.xml_to_ChooseWaveformParams_array(truth_file_path)[0]
-        truths = [ P.extract_param('m1')/lsu.lsu_MSUN, P.extract_param('m2')/lsu.lsu_MSUN, P.extract_param('s1z'), P.extract_param('s2z'),  P.extract_param('lambda'),  P.extract_param('beta')]
-        fig = corner.corner(data,  truth_color="black", truths=truths, color='cornflowerblue', smooth=None,smooth1d =None, linewidth = 1.0,  plot_datapoints=True, plot_density=False, no_fill_contours=True, contours=False, levels=[0.0], contour_kwargs={"linewidths":1.0},hist_kwargs={"linewidth":1.0, "density": True},labels=[r"$m_1$ $(\times 10^6 M_\odot)$", r"$m_2$ $(\times 10^6 M_\odot)$", r"$a_{1z}$", r"$a_{2z}$", r"$\lambda$", r"$\beta$"])
-    else:
-        fig = corner.corner(data,  color='cornflowerblue', smooth=None,smooth1d =None, linewidth = 1.0,  plot_datapoints=True, plot_density=False, no_fill_contours=True, contours=False, levels=[0.0], contour_kwargs={"linewidths":1.0},hist_kwargs={"linewidth":1.0, "density": True},labels=[r"$m_1$ $(\times 10^6 M_\odot)$", r"$m_2$ $(\times 10^6 M_\odot)$", r"$a_{1z}$", r"$a_{2z}$", r"$\lambda$", r"$\beta$"])
-    # Save this figure
-    fig.savefig(f'plots/exploration_corner.png')
-
-
 def plot_JS_divergence(posterior_1_path, posterior_2_path, plot_title, parameters = ["mc","eta", "m1", "m2", "s1z", "s2z", "chi_eff"]):
     """
     Plots Jensen-Shannon Divergence (JSD) between two posterior datasets for specified parameters.
@@ -602,6 +604,9 @@ def plot_JS_divergence(posterior_1_path, posterior_2_path, plot_title, parameter
     if LISA:
         parameters.append("dec")
         parameters.append("ra")
+    if eccentricity:
+        parameters.append("eccentricity")
+        parameters.append("meanPerAno")
     posterior_data1 = np.loadtxt(posterior_1_path)
     posterior_data2 = np.loadtxt(posterior_2_path)
     JSD_array = []
@@ -703,7 +708,7 @@ def evaluate_run(run_diagnostics):
     f.write("\n###########################################################################################\n")
     f.write("# Visual diagnostics\n")
     f.write("###########################################################################################\n")
-    f.write("\t 1) Is the 90% credible interval mostly around the red points? If not, it could be that the run needs more iterations. If the SNR < 30, then the prior might be impact it and the shift is expected.")
+    f.write("\t 1) Is the 90% credible interval mostly around the red points? If not, it could be that the run needs more iterations. If the SNR < 30, then the prior might impact it and the shift is expected.")
     f.write(f"\n\t 2) Has the parameter space been sufficiently explored? Are there blue points around the red points? Continuing the run will help if this is true with {run_diagnostics['latest_grid']} as your starting grid and copying this run's all.net as bonus.composite in your new run directory")
     f.write("\n\t 3) Is the approximate SNR captured close to True SNR? A significant difference implies the inference got stuck at a local lnL maxima. Happens rarely")
 
@@ -731,16 +736,24 @@ if len(main_posterior_files) > 7:
 subdag_posterior_files, subdag_iterations = find_posteriors_in_sub(path)
 
 # plot neff
-plot_neff_data(path)
+try:
+    plot_neff_data(path)
+except:
+    # run this function so some information in run_diagnostics dict gets populated.
+    get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=False)
+    print("Couldn't plot CIP neff per worker for each iteration.")
 
 # plot sampled max lnL
-plot_cip_max_lnL(path)
+try:
+    plot_cip_max_lnL(path)
+except:
+     print("Couldn't plot max lnL sampled by CIPp er iteration.")
 
 # plot likelihood exploration
-plot_high_likelihood_expoloration(path)
-
-# plot exploration corner
-plot_exploration_corner(all_net_path)
+try:
+    plot_high_likelihood_expoloration(path)
+except:
+    print("Couldn't plot high likelihod exploration plot.")
 
 # plot histograms
 plot_histograms(main_posterior_files, plot_title="Main", iterations=main_iterations, JSD = False)
@@ -748,11 +761,18 @@ plot_histograms(main_posterior_files, plot_title="Main", iterations=main_iterati
 # plot corner plots
 if LISA:
     plot_corner(main_posterior_files, "Main", iterations = main_iterations, use_truths = use_truths)
-    plot_corner(main_posterior_files, "Main", parameters = ["mc", "eta", "chi_eff", "dec", "ra"], iterations = main_iterations, use_truths = use_truths)
-    plot_corner(main_posterior_files, "Main", parameters = ["m1", "m2", "a1z", "a2z", "dec", "ra"], iterations = main_iterations, use_truths = use_truths)
-    plot_corner([main_posterior_files[-1]], "Final", parameters = ["mc", "eta", "chi_eff", "dec", "ra"], use_truths = use_truths)
-    plot_corner([main_posterior_files[-1]], "Final", parameters = ["m1", "m2", "a1z", "a2z", "dec", "ra"], use_truths = use_truths)
-    plot_corner([main_posterior_files[-1]], "Final", parameters = ["mtot", "q", "a1z", "a2z", "dec", "ra"], use_truths = use_truths)
+    if eccentricity: 
+        plot_corner(main_posterior_files, "Main", parameters = ["mc", "eta", "chi_eff", "eccentricity", "meanPerAno", "dec", "ra"], iterations = main_iterations, use_truths = use_truths)
+        plot_corner(main_posterior_files, "Main", parameters = ["m1", "m2", "a1z", "a2z", "eccentricity", "meanPerAno", "dec", "ra"], iterations = main_iterations, use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", parameters = ["mc", "eta", "chi_eff", "eccentricity", "meanPerAno", "dec", "ra"], use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", parameters = ["m1", "m2", "a1z", "a2z", "eccentricity", "meanPerAno", "dec", "ra"], use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", parameters = ["mtot", "q", "a1z", "a2z", "eccentricity", "meanPerAno", "dec", "ra"], use_truths = use_truths)
+    else:
+        plot_corner(main_posterior_files, "Main", parameters = ["mc", "eta", "chi_eff", "dec", "ra"], iterations = main_iterations, use_truths = use_truths)
+        plot_corner(main_posterior_files, "Main", parameters = ["m1", "m2", "a1z", "a2z", "dec", "ra"], iterations = main_iterations, use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", parameters = ["mc", "eta", "chi_eff", "dec", "ra"], use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", parameters = ["m1", "m2", "a1z", "a2z", "dec", "ra"], use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", parameters = ["mtot", "q", "a1z", "a2z", "dec", "ra"], use_truths = use_truths)
 else:
     plot_corner(main_posterior_files, "Main", iterations = main_iterations, use_truths = use_truths)
     plot_corner(main_posterior_files, "Main", parameters = ["m1", "m2", "a1z", "a2z"], iterations = main_iterations, use_truths = use_truths)
