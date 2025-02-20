@@ -285,6 +285,7 @@ parser.add_argument("--ecliptic-longitude", default=None)
 parser.add_argument("--ecliptic-latitude", default=None)
 parser.add_argument("--ile-memory", default=4096, help="ILE memory")
 parser.add_argument("--puff-iterations", default=5, help="Number of iterations that will be puffed.")
+parser.add_argument("--puff-factor", default=2, help="puff factor, the covariance of the existing samples get multiplied by this factor")
 parser.add_argument("--psd-directory", default=os.getcwd(), help="Path where all the psds are located, they should be named as ifo-psd.xml.gz, where for LISA ifo is A, E, and T")
 # LISA CIP
 parser.add_argument("--downselect-parameter-range", default="[1,1000]", help="m2 downselect parameter range, default being [1,1000] in CIP.") 
@@ -1234,8 +1235,7 @@ if opts.assume_eccentric and opts.LISA:
 if opts.assume_highq:
     puff_params = puff_params.replace(' delta_mc ', ' eta ')  # use natural coordinates in the high q strategy. May want to do this always
     puff_max_it +=3
-#if opts.LISA:
-#    puff_max_it +=5 # need to be able to resolve tails well
+puff_params.relpace(f" puff-factor 2", " puff-factor {float(opts.puff_factor)}")
 with open("args_puff.txt",'w') as f:
         puff_args =''  # note used below
         if opts.force_chi_max and not(opts.force_chi_small_max) and not(opts.LISA):
