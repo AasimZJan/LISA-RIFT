@@ -736,13 +736,24 @@ if len(main_posterior_files) > 7:
 subdag_posterior_files, subdag_iterations = find_posteriors_in_sub(path)
 
 # plot neff
-plot_neff_data(path)
+try:
+    plot_neff_data(path)
+except:
+    # run this function so some information in run_diagnostics dict gets populated.
+    get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=False)
+    print("Couldn't plot CIP neff per worker for each iteration.")
 
 # plot sampled max lnL
-plot_cip_max_lnL(path)
+try:
+    plot_cip_max_lnL(path)
+except:
+     print("Couldn't plot max lnL sampled by CIPp er iteration.")
 
 # plot likelihood exploration
-plot_high_likelihood_expoloration(path)
+try:
+    plot_high_likelihood_expoloration(path)
+except:
+    print("Couldn't plot high likelihod exploration plot.")
 
 # plot histograms
 plot_histograms(main_posterior_files, plot_title="Main", iterations=main_iterations, JSD = False)
