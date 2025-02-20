@@ -63,16 +63,16 @@ X = dat_out[:,0:len(coord_names)]
 
 # kde
 kde = stats.gaussian_kde(X.T)
-# broaden it
+# broaden it 
 kde.covariance = float(opts.puff_factor)*kde.covariance 
 # generate new samples
-X_out = kde.resample(2*len(X)).T # final shape: (total_samples, params)
+X_out = kde.resample(len(X)).T # final shape: (total_samples, params)
 
 
 # Copy parameters back in.  MAKE SURE THIS IS POSSIBLE
 P_out = []
 for indx_P in np.arange(len(P_list)):
-    include_item=True
+    include_item = True
     P = P_list[indx_P]
     for indx in np.arange(len(coord_names)):
         fac=1
@@ -83,7 +83,7 @@ for indx_P in np.arange(len(P_list)):
             continue
         if coord_names[indx] in ['mc','m1','m2','mtot']:
             fac = lal.MSUN_SI
-        P_list[indx_P].assign_param( coord_names[indx], X_out[indx_P,indx]*fac)
+        P_list[indx_P].assign_param(coord_names[indx], X_out[indx_P,indx]*fac)
 
     if np.isnan(P.m1) or np.isnan(P.m2):  # don't allow nan mass
         continue
@@ -91,12 +91,12 @@ for indx_P in np.arange(len(P_list)):
     for param in downselect_dict:
         val = P.extract_param(param)
         if np.isnan(val):
-            include_item=False   # includes check on m1,m2
+            include_item = False   # includes check on m1,m2
             continue # stop trying to calculate with this parameter
         if param in ['mc','m1','m2','mtot']:
             val = val/ lal.MSUN_SI
         if val < downselect_dict[param][0] or val > downselect_dict[param][1]:
-            include_item =False
+            include_item = False
     if include_item:
         P_out.append(P)
 
