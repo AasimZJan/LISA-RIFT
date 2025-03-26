@@ -97,6 +97,9 @@ def get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=
     if LISA and eccentricity:
         lnL = data[:,13]
         error = data[:,14]
+    if not(LISA) and eccentricity:
+        lnL = data[:, 11]
+        error = data[:, 12]
     
     # Remove NaN values from lnL
     total_points = len(lnL)
@@ -572,8 +575,11 @@ def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, para
         plotting_command += "--LISA "
     
     # Append eccentricity flag if applicable
-    if eccentricity:
+    if LISA and eccentricity:
         plotting_command += "--eccentricity "
+
+    if not(LISA) and eccentricity:
+        plotting_command += "--eccentricity --meanPerAno"
     
     # avoid too much output
     plotting_command += " 2> /dev/null"
@@ -736,13 +742,24 @@ if len(main_posterior_files) > 7:
 subdag_posterior_files, subdag_iterations = find_posteriors_in_sub(path)
 
 # plot neff
-plot_neff_data(path)
+try:
+    plot_neff_data(path)
+except:
+    # run this function so some information in run_diagnostics dict gets populated.
+    get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=False)
+    print("Couldn't plot CIP neff per worker for each iteration.")
 
 # plot sampled max lnL
-plot_cip_max_lnL(path)
+try:
+    plot_cip_max_lnL(path)
+except:
+     print("Couldn't plot max lnL sampled by CIPp er iteration.")
 
 # plot likelihood exploration
-plot_high_likelihood_expoloration(path)
+try:
+    plot_high_likelihood_expoloration(path)
+except:
+    print("Couldn't plot high likelihod exploration plot.")
 
 # plot histograms
 plot_histograms(main_posterior_files, plot_title="Main", iterations=main_iterations, JSD = False)
@@ -764,11 +781,18 @@ if LISA:
         plot_corner([main_posterior_files[-1]], "Final", parameters = ["mtot", "q", "a1z", "a2z", "dec", "ra"], use_truths = use_truths)
 else:
     plot_corner(main_posterior_files, "Main", iterations = main_iterations, use_truths = use_truths)
-    plot_corner(main_posterior_files, "Main", parameters = ["m1", "m2", "a1z", "a2z"], iterations = main_iterations, use_truths = use_truths)
-    plot_corner(main_posterior_files, "Main", parameters = ["mtot", "q", "a1z", "a2z"], iterations = main_iterations, use_truths = use_truths)
-    plot_corner([main_posterior_files[-1]], "Final", use_truths = use_truths)
-    plot_corner([main_posterior_files[-1]], "Final", parameters = ["m1", "m2", "a1z", "a2z"], use_truths = use_truths)
-    plot_corner([main_posterior_files[-1]], "Final", parameters = ["mtot", "q", "a1z", "a2z"], use_truths = use_truths)
+    if eccentricity:
+        plot_corner(main_posterior_files, "Main", parameters = ["m1", "m2", "a1z", "a2z", "eccentricity", "meanPerAno"], iterations = main_iterations, use_truths = use_truths)
+        plot_corner(main_posterior_files, "Main", parameters = ["mtot", "q", "a1z", "a2z", "eccentricity", "meanPerAno"], iterations = main_iterations, use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", parameters = ["mc", "eta", "chi_eff", "eccentricity", "meanPerAno"], use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", parameters = ["m1", "m2", "a1z", "a2z", "eccentricity", "meanPerAno"], use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", parameters = ["mtot", "q", "a1z", "a2z", "eccentricity", "meanPerAno"], use_truths = use_truths)
+    else:
+        plot_corner(main_posterior_files, "Main", parameters = ["m1", "m2", "a1z", "a2z"], iterations = main_iterations, use_truths = use_truths)
+        plot_corner(main_posterior_files, "Main", parameters = ["mtot", "q", "a1z", "a2z"], iterations = main_iterations, use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", parameters = ["m1", "m2", "a1z", "a2z"], use_truths = use_truths)
+        plot_corner([main_posterior_files[-1]], "Final", parameters = ["mtot", "q", "a1z", "a2z"], use_truths = use_truths)
 
 # plot JS test
 plot_JS_divergence(main_posterior_files[-1], main_posterior_files[-2], "Main_iteration") # the last two main iterations
