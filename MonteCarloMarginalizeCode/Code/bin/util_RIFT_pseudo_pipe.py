@@ -1235,7 +1235,7 @@ if opts.assume_eccentric and opts.LISA:
 if opts.assume_highq:
     puff_params = puff_params.replace(' delta_mc ', ' eta ')  # use natural coordinates in the high q strategy. May want to do this always
     puff_max_it +=3
-puff_params.relpace(f" puff-factor 2", " puff-factor {float(opts.puff_factor)}")
+puff_params.replace(f" puff-factor 2", " puff-factor {float(opts.puff_factor)}")
 with open("args_puff.txt",'w') as f:
         puff_args =''  # note used below
         if opts.force_chi_max and not(opts.force_chi_small_max) and not(opts.LISA):
