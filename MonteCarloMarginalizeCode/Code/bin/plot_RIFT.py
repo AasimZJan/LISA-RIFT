@@ -63,8 +63,10 @@ else:
 
 # Initialize diagnostics dictionary
 run_diagnostics = {
-    "JSD": {}
+    "JSD": {},
+    "JSD_3": {},
 }
+
 
 ###########################################################################################
 # Functions
@@ -597,7 +599,7 @@ def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, para
         os.system(f"mv {parameter}.png plots/1_D_plots/{parameter}_{plot_title}.png")
         os.system(f"mv {parameter}_cum.png plots/1_D_plots/{parameter}_cum_{plot_title}.png") 
 
-def plot_JS_divergence(posterior_1_path, posterior_2_path, posterior_3_path=None, plot_title=None, parameters = ["mc","eta", "m1", "m2", "s1z", "s2z", "chi_eff"]):
+def plot_JS_divergence(posterior_1_path, posterior_2_path, posterior_3_path=None, plot_title=None, threshold=0.007, parameters = ["mc","eta", "m1", "m2", "s1z", "s2z", "chi_eff"]):
     """
     Plots Jensen-Shannon Divergence (JSD) between two posterior datasets for specified parameters.
 
@@ -613,6 +615,7 @@ def plot_JS_divergence(posterior_1_path, posterior_2_path, posterior_3_path=None
     if eccentricity:
         parameters.append("eccentricity")
         parameters.append("meanPerAno")
+    print(f"\nPlotting Jensen Shannon Divergence for {parameters} with threshold {threshold}\n")
     posterior_data1 = np.loadtxt(posterior_1_path)
     posterior_data2 = np.loadtxt(posterior_2_path)
     if not(posterior_3_path is None):
@@ -622,6 +625,7 @@ def plot_JS_divergence(posterior_1_path, posterior_2_path, posterior_3_path=None
     JSD_array_third = [] # collect for last and third-to-last
     JSD_error_third = []
     run_diagnostics["JSD"][plot_title] = {}
+    run_diagnostics["JSD_3"][plot_title] = {}
     for parameter in parameters:
         if parameter == "chi_eff":
             data1, data2 = get_chi_eff_from_mass_and_spins(posterior_data1), get_chi_eff_from_mass_and_spins(posterior_data2)
@@ -645,10 +649,10 @@ def plot_JS_divergence(posterior_1_path, posterior_2_path, posterior_3_path=None
     fig, ax = plt.subplots()
     ax.set_title(plot_title)
     ax.set_ylabel("JSD")
-    ax.axhline( y = 0.007, linewidth = 1.0, linestyle = "--", color = "red")
-    ax.errorbar(parameters, JSD_array, np.array(JSD_error).T,  color = "royalblue", ecolor = "red", fmt ='o', markersize = 5, label='last-secondlast')
+    ax.axhline( y = threshold, linewidth = 1.0, linestyle = "--", color = "red")
+    ax.errorbar(parameters, JSD_array, np.array(JSD_error).T,  color = "royalblue", ecolor = "red", fmt ='o', markersize = 5, label='latest-secondlatest')
     if not(posterior_3_path is None):
-        ax.errorbar(parameters, JSD_array_third, np.array(JSD_error_third).T,  color = "green", ecolor = "black", fmt ='o', markersize = 5, label='last-thirdlast')
+        ax.errorbar(parameters, JSD_array_third, np.array(JSD_error_third).T,  color = "green", ecolor = "black", fmt ='o', markersize = 5, label='latest-thirdlatest')
     ax.legend(loc='upper right')
     fig.savefig(path+f"/plots/JSD_{plot_title}.png", bbox_inches='tight')
     plt.close(fig)
@@ -813,7 +817,7 @@ else:
 # plot JS test
 try:
     plot_JS_divergence(main_posterior_files[-1], main_posterior_files[-2], main_posterior_files[-3], "Main_iteration") # the last secondlast main iteration and last thirdlast main iteration
-except:    
+except:
     plot_JS_divergence(main_posterior_files[-1], main_posterior_files[-2], None, "Main_iteration") # the last secondlast main iteration
 
 # is there a subdag? If not, don't plot!
