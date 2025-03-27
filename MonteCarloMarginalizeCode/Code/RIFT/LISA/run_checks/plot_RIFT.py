@@ -63,8 +63,10 @@ else:
 
 # Initialize diagnostics dictionary
 run_diagnostics = {
-    "JSD": {}
+    "JSD": {},
+    "JSD_3": {},
 }
+
 
 ###########################################################################################
 # Functions
@@ -200,6 +202,18 @@ def get_index_for_parameter(parameter):
     }
     
     return parameter_indices.get(parameter, None)  # Return None if parameter is not found
+
+def get_sample_statistics(samples):
+    """
+    Computes statistical percentiles (16th, 50th, and 84th) for a given sample set.
+    Args:
+        samples (array-like): A list or NumPy array of samples.
+
+    Returns:
+        sample statistics (numpy.ndarray): An array containing the 16th, 50th, and 84th percentiles 
+        of the input samples.
+    """
+    return np.percentile(samples, [16,50,84])
 
 def get_chi_eff_from_mass_and_spins(posterior):
     """
@@ -428,7 +442,7 @@ def plot_cip_max_lnL(path_to_main_folder):
 
     The function saves the plot as 'Sampled_CIP_lnL.png' in a 'plots' subdirectory of the main folder.
     """
-    print("Plotting sampled lnL by CIP")
+    print("\nPlotting sampled lnL by CIP")
     iterations = np.arange(0, run_diagnostics["latest_iteration"]+1, 1)
     run_diagnostics['cip_sampled_lnL'] = {}
     fig, ax = plt.subplots()
@@ -597,7 +611,7 @@ def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, para
         os.system(f"mv {parameter}.png plots/1_D_plots/{parameter}_{plot_title}.png")
         os.system(f"mv {parameter}_cum.png plots/1_D_plots/{parameter}_cum_{plot_title}.png") 
 
-def plot_JS_divergence(posterior_1_path, posterior_2_path, plot_title, parameters = ["mc","eta", "m1", "m2", "s1z", "s2z", "chi_eff"]):
+def plot_JS_divergence(posterior_1_path, posterior_2_path, posterior_3_path=None, plot_title=None, threshold=0.007, parameters = ["mc","eta", "m1", "m2", "s1z", "s2z", "chi_eff"]):
     """
     Plots Jensen-Shannon Divergence (JSD) between two posterior datasets for specified parameters.
 
@@ -613,28 +627,94 @@ def plot_JS_divergence(posterior_1_path, posterior_2_path, plot_title, parameter
     if eccentricity:
         parameters.append("eccentricity")
         parameters.append("meanPerAno")
+    print(f"\nPlotting Jensen Shannon Divergence for {parameters} with threshold {threshold}\n")
     posterior_data1 = np.loadtxt(posterior_1_path)
     posterior_data2 = np.loadtxt(posterior_2_path)
-    JSD_array = []
+    if not(posterior_3_path is None):
+        posterior_data3 = np.loadtxt(posterior_3_path)
+    JSD_array = [] # collect for last and second-to-last
     JSD_error = []
+    JSD_array_third = [] # collect for last and third-to-last
+    JSD_error_third = []
     run_diagnostics["JSD"][plot_title] = {}
+    run_diagnostics["JSD_3"][plot_title] = {}
     for parameter in parameters:
         if parameter == "chi_eff":
             data1, data2 = get_chi_eff_from_mass_and_spins(posterior_data1), get_chi_eff_from_mass_and_spins(posterior_data2)
             JSD = calculate_JS_divergence(data1, data2)
+            if not(posterior_3_path is None):
+                data3 = get_chi_eff_from_mass_and_spins(posterior_data3)
+                JSD_3 = calculate_JS_divergence(data1, data3)
         else:
             parameter_n = get_index_for_parameter(parameter)
             JSD = calculate_JS_divergence(posterior_data1[:, parameter_n], posterior_data2[:, parameter_n])
+            if not(posterior_3_path is None):
+                parameter_n = get_index_for_parameter(parameter)
+                JSD_3 = calculate_JS_divergence(posterior_data1[:, parameter_n], posterior_data3[:, parameter_n])
         JSD_array.append(JSD.median)
         JSD_error.append([JSD.minus, JSD.plus])
         run_diagnostics["JSD"][plot_title][parameter] = np.round(JSD.median, 3)
+        if not(posterior_3_path is None):
+            JSD_array_third.append(JSD_3.median)
+            JSD_error_third.append([JSD_3.minus, JSD_3.plus])
+            run_diagnostics["JSD_3"][plot_title][parameter] = np.round(JSD_3.median, 3)
     fig, ax = plt.subplots()
     ax.set_title(plot_title)
     ax.set_ylabel("JSD")
-    ax.axhline( y =0.05, linewidth = 1.0, linestyle = "--", color = "red")
-    ax.errorbar(parameters, JSD_array, np.array(JSD_error).T,  color = "royalblue", ecolor = "red", fmt ='o', markersize = 5)
+    ax.axhline( y = threshold, linewidth = 1.0, linestyle = "--", color = "red")
+    ax.errorbar(parameters, JSD_array, np.array(JSD_error).T,  color = "royalblue", ecolor = "red", fmt ='o', markersize = 5, label='latest-secondlatest')
+    if not(posterior_3_path is None):
+        ax.errorbar(parameters, JSD_array_third, np.array(JSD_error_third).T,  color = "green", ecolor = "black", fmt ='o', markersize = 5, label='latest-thirdlatest')
+    ax.legend(loc='upper right')
     fig.savefig(path+f"/plots/JSD_{plot_title}.png", bbox_inches='tight')
     plt.close(fig)
+
+def write_sample_statistics(posterior, parameters=["mc","eta", "m1", "m2", "s1z", "s2z", "chi_eff"]):
+    """
+    Computes and writes sample statistics for specified parameters to a file.
+    Args:
+        posterior (str): Path to the file containing posterior samples.
+        parameters (list, optional): List of parameter names for which
+            statistics will be computed. Defaults to
+            ["mc", "eta", "m1", "m2", "s1z", "s2z", "chi_eff"].
+    """
+    if LISA:
+        parameters.append("dec")
+        parameters.append("ra")
+    if eccentricity:
+        parameters.append("eccentricity")
+        parameters.append("meanPerAno")
+    if use_truths:
+        P = lsu.xml_to_ChooseWaveformParams_array(truth_file_path)[0]
+    print(f"\nWriting sample statistics for parameters: {parameters}")
+    posterior = np.loadtxt(posterior)
+    f = open(path+f"/plots/sample_statistics.txt", "w")
+    f.write("Note: limits are 68th percentile (1 std)\n")
+    run_diagnostics["sample_statistics"] = {}
+    for parameter in parameters:
+        if parameter == 'chi_eff':
+            samples_here = get_chi_eff_from_mass_and_spins(posterior)
+        else:
+            parameter_n = get_index_for_parameter(parameter)
+            samples_here = posterior[:,parameter_n]
+        statistics = get_sample_statistics(samples_here)
+        run_diagnostics["sample_statistics"][parameter] = np.round(statistics,3)
+        line = f"{parameter}: median = {statistics[1]:0.3f}, upper limit = {statistics[2]:0.3f}, lower limit = {statistics[0]:0.3f}"
+        if use_truths:
+            factor = 1
+            parameter_extract = parameter
+            if parameter in ["mc", "m1", "m2", "mtot"]:
+                factor = lsu.lsu_MSUN
+            if parameter == "chi_eff":
+                parameter_extract = "xi"
+            if parameter == "ra":
+                parameter_extract = "phi"
+            if parameter == "dec":
+                parameter_extract = "theta"
+            line += f", truth here = {P.extract_param(parameter_extract)/factor:0.3f}"
+        f.write(line + "\n")
+    f.close()
+
 
 def evaluate_run(run_diagnostics):
     """
@@ -679,9 +759,12 @@ def evaluate_run(run_diagnostics):
     f.write(f"CIP neff requested = {run_diagnostics['CIP_neff']}]\n")
     f.write(f"CIP neff achieved = {run_diagnostics['CIP_neff_achieved']}\n")
     CIP_is_good = True
+    first_iter_neff = run_diagnostics['CIP_neff'][list(run_diagnostics['CIP_neff'].keys())[0]]
     last_iter_neff = run_diagnostics['CIP_neff'][list(run_diagnostics['CIP_neff'].keys())[-1]]
     last_iter_neff_achieved = run_diagnostics['CIP_neff_achieved'][list(run_diagnostics['CIP_neff_achieved'].keys())[-1]]
-    if last_iter_neff > last_iter_neff_achieved:
+    if first_iter_neff <= last_iter_neff_achieved <= last_iter_neff and first_iter_neff!=last_iter_neff:
+        f.write(f"\t--> neff has not been reached, the posterior distribution may be wider and/or less smooth. To address this, try narrowing the parameter space or switching to a different sampler. Alternatively, you can reduce the neff for each CIP job (>10) and increase the number of CIP jobs submitted per iteration. However, it seems like it has reached neff as set by the CIP for earlier iterations (CIP_worker0.sub), so if the run is ongoing let it continue.\n")
+    elif last_iter_neff > last_iter_neff_achieved:
         f.write(f"\t--> neff has not been reached, the posterior distribution may be wider and/or less smooth. To address this, try narrowing the parameter space or switching to a different sampler. Alternatively, you can reduce the neff for each CIP job (>10) and increase the number of CIP jobs submitted per iteration.\n")
         CIP_is_good = False
     # CIP JSD
@@ -753,13 +836,16 @@ except:
 try:
     plot_cip_max_lnL(path)
 except:
-     print("Couldn't plot max lnL sampled by CIPp er iteration.")
+     print("Couldn't plot max lnL sampled by CIP per iteration.")
 
 # plot likelihood exploration
 try:
     plot_high_likelihood_expoloration(path)
 except:
     print("Couldn't plot high likelihod exploration plot.")
+
+# write sample statistics
+write_sample_statistics(main_posterior_files[-1])
 
 # plot histograms
 plot_histograms(main_posterior_files, plot_title="Main", iterations=main_iterations, JSD = False)
@@ -782,21 +868,22 @@ if LISA:
 else:
     plot_corner(main_posterior_files, "Main", iterations = main_iterations, use_truths = use_truths)
     if eccentricity:
+        plot_corner(main_posterior_files, "Main", parameters = ["mc", "eta", "chi_eff", "eccentricity", "meanPerAno"], iterations = main_iterations, use_truths = use_truths)
         plot_corner(main_posterior_files, "Main", parameters = ["m1", "m2", "a1z", "a2z", "eccentricity", "meanPerAno"], iterations = main_iterations, use_truths = use_truths)
-        plot_corner(main_posterior_files, "Main", parameters = ["mtot", "q", "a1z", "a2z", "eccentricity", "meanPerAno"], iterations = main_iterations, use_truths = use_truths)
         plot_corner([main_posterior_files[-1]], "Final", parameters = ["mc", "eta", "chi_eff", "eccentricity", "meanPerAno"], use_truths = use_truths)
         plot_corner([main_posterior_files[-1]], "Final", parameters = ["m1", "m2", "a1z", "a2z", "eccentricity", "meanPerAno"], use_truths = use_truths)
         plot_corner([main_posterior_files[-1]], "Final", parameters = ["mtot", "q", "a1z", "a2z", "eccentricity", "meanPerAno"], use_truths = use_truths)
     else:
         plot_corner(main_posterior_files, "Main", parameters = ["m1", "m2", "a1z", "a2z"], iterations = main_iterations, use_truths = use_truths)
-        plot_corner(main_posterior_files, "Main", parameters = ["mtot", "q", "a1z", "a2z"], iterations = main_iterations, use_truths = use_truths)
         plot_corner([main_posterior_files[-1]], "Final", use_truths = use_truths)
         plot_corner([main_posterior_files[-1]], "Final", parameters = ["m1", "m2", "a1z", "a2z"], use_truths = use_truths)
         plot_corner([main_posterior_files[-1]], "Final", parameters = ["mtot", "q", "a1z", "a2z"], use_truths = use_truths)
 
 # plot JS test
-plot_JS_divergence(main_posterior_files[-1], main_posterior_files[-2], "Main_iteration") # the last two main iterations
-
+try:
+    plot_JS_divergence(main_posterior_files[-1], main_posterior_files[-2], main_posterior_files[-3], "Main_iteration") # the last secondlast main iteration and last thirdlast main iteration
+except:
+    plot_JS_divergence(main_posterior_files[-1], main_posterior_files[-2], None, "Main_iteration") # the last secondlast main iteration
 
 # is there a subdag? If not, don't plot!
 if len(subdag_posterior_files) == 0:
@@ -804,15 +891,20 @@ if len(subdag_posterior_files) == 0:
 else:
     analyse_subdag = True
 
+# if the number of subdag iterations is high, only show five iterations to prevent overcrowding
 if len(subdag_posterior_files) > 8 and analyse_subdag == True:
-    limit_subdag_iterations = 5 # if the number of subdag iterations is high, only show five iterations to prevent overcrowding
+    limit_subdag_iterations = 5 
     subdag_posterior_files, subdag_iterations = find_posteriors_in_sub(path, limit_iterations=limit_subdag_iterations)
 
+# analyze subdag
 if analyse_subdag:
     plot_histograms(subdag_posterior_files, plot_title="Subdag", iterations=subdag_iterations, JSD = False)
     plot_corner(subdag_posterior_files, "Subdag", iterations = subdag_iterations, use_truths = use_truths)
-    plot_JS_divergence(subdag_posterior_files[-1], subdag_posterior_files[-2], "Subdag") # the last two subdag iterations
-    plot_JS_divergence(main_posterior_files[-1], subdag_posterior_files[-1], "Main") # the last main and subdag iteration
+    try:
+        plot_JS_divergence(subdag_posterior_files[-1], subdag_posterior_files[-2], None, "Subdag") # the last two subdag iterations
+    except:
+        plot_JS_divergence(subdag_posterior_files[-1], subdag_posterior_files[-2], subdag_posterior_files[-3], "Subdag")
+    plot_JS_divergence(main_posterior_files[-1], subdag_posterior_files[-1], None, "Main") # the last main and subdag iteration
 
 if check_extrinsic_present(path):
     plot_corner([f"{path}/extrinsic_posterior_samples.dat"], "extrinsic", parameters = ["distance", "incl", "phiorb", "psi", "time"], use_truths = use_truths)
