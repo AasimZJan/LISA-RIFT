@@ -543,7 +543,7 @@ def plot_histograms(sorted_posterior_file_paths, plot_title, iterations = None, 
         # don't create legend when only plotting finals iteration's histograms
         if plot_legend: 
             ax.legend(loc = "upper right")
-        fig.savefig(path+f"/plots/histograms/historgam_{plot_title}_{parameter}.png", bbox_inches='tight')
+        fig.savefig(path+f"/plots/histograms/histogram_{plot_title}_{parameter}.png", bbox_inches='tight')
         plt.close()
 
 def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, parameters = ["mc", "eta", "xi"], use_truths = False):
@@ -666,6 +666,7 @@ def plot_JS_divergence(posterior_1_path, posterior_2_path, posterior_3_path=None
     if not(posterior_3_path is None):
         ax.errorbar(parameters, JSD_array_third, np.array(JSD_error_third).T,  color = "green", ecolor = "black", fmt ='o', markersize = 5, label='latest-thirdlatest')
     ax.legend(loc='upper right')
+    ax.tick_params(axis='x', labelrotation=60)
     fig.savefig(path+f"/plots/JSD_{plot_title}.png", bbox_inches='tight')
     plt.close(fig)
 

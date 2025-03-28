@@ -203,6 +203,18 @@ def get_index_for_parameter(parameter):
     
     return parameter_indices.get(parameter, None)  # Return None if parameter is not found
 
+def get_sample_statistics(samples):
+    """
+    Computes statistical percentiles (16th, 50th, and 84th) for a given sample set.
+    Args:
+        samples (array-like): A list or NumPy array of samples.
+
+    Returns:
+        sample statistics (numpy.ndarray): An array containing the 16th, 50th, and 84th percentiles 
+        of the input samples.
+    """
+    return np.percentile(samples, [16,50,84])
+
 def get_chi_eff_from_mass_and_spins(posterior):
     """
     Computes the effective spin parameter (χ_eff) from the posterior data.
@@ -430,7 +442,7 @@ def plot_cip_max_lnL(path_to_main_folder):
 
     The function saves the plot as 'Sampled_CIP_lnL.png' in a 'plots' subdirectory of the main folder.
     """
-    print("Plotting sampled lnL by CIP")
+    print("\nPlotting sampled lnL by CIP")
     iterations = np.arange(0, run_diagnostics["latest_iteration"]+1, 1)
     run_diagnostics['cip_sampled_lnL'] = {}
     fig, ax = plt.subplots()
@@ -531,7 +543,7 @@ def plot_histograms(sorted_posterior_file_paths, plot_title, iterations = None, 
         # don't create legend when only plotting finals iteration's histograms
         if plot_legend: 
             ax.legend(loc = "upper right")
-        fig.savefig(path+f"/plots/histograms/historgam_{plot_title}_{parameter}.png", bbox_inches='tight')
+        fig.savefig(path+f"/plots/histograms/histogram_{plot_title}_{parameter}.png", bbox_inches='tight')
         plt.close()
 
 def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, parameters = ["mc", "eta", "xi"], use_truths = False):
@@ -654,8 +666,56 @@ def plot_JS_divergence(posterior_1_path, posterior_2_path, posterior_3_path=None
     if not(posterior_3_path is None):
         ax.errorbar(parameters, JSD_array_third, np.array(JSD_error_third).T,  color = "green", ecolor = "black", fmt ='o', markersize = 5, label='latest-thirdlatest')
     ax.legend(loc='upper right')
+    ax.tick_params(axis='x', labelrotation=60)
     fig.savefig(path+f"/plots/JSD_{plot_title}.png", bbox_inches='tight')
     plt.close(fig)
+
+def write_sample_statistics(posterior, parameters=["mc","eta", "m1", "m2", "s1z", "s2z", "chi_eff"]):
+    """
+    Computes and writes sample statistics for specified parameters to a file.
+    Args:
+        posterior (str): Path to the file containing posterior samples.
+        parameters (list, optional): List of parameter names for which
+            statistics will be computed. Defaults to
+            ["mc", "eta", "m1", "m2", "s1z", "s2z", "chi_eff"].
+    """
+    if LISA:
+        parameters.append("dec")
+        parameters.append("ra")
+    if eccentricity:
+        parameters.append("eccentricity")
+        parameters.append("meanPerAno")
+    if use_truths:
+        P = lsu.xml_to_ChooseWaveformParams_array(truth_file_path)[0]
+    print(f"\nWriting sample statistics for parameters: {parameters}")
+    posterior = np.loadtxt(posterior)
+    f = open(path+f"/plots/sample_statistics.txt", "w")
+    f.write("Note: limits are 68th percentile (1 std)\n")
+    run_diagnostics["sample_statistics"] = {}
+    for parameter in parameters:
+        if parameter == 'chi_eff':
+            samples_here = get_chi_eff_from_mass_and_spins(posterior)
+        else:
+            parameter_n = get_index_for_parameter(parameter)
+            samples_here = posterior[:,parameter_n]
+        statistics = get_sample_statistics(samples_here)
+        run_diagnostics["sample_statistics"][parameter] = np.round(statistics,3)
+        line = f"{parameter}: median = {statistics[1]:0.3f}, upper limit = {statistics[2]:0.3f}, lower limit = {statistics[0]:0.3f}"
+        if use_truths:
+            factor = 1
+            parameter_extract = parameter
+            if parameter in ["mc", "m1", "m2", "mtot"]:
+                factor = lsu.lsu_MSUN
+            if parameter == "chi_eff":
+                parameter_extract = "xi"
+            if parameter == "ra":
+                parameter_extract = "phi"
+            if parameter == "dec":
+                parameter_extract = "theta"
+            line += f", truth here = {P.extract_param(parameter_extract)/factor:0.3f}"
+        f.write(line + "\n")
+    f.close()
+
 
 def evaluate_run(run_diagnostics):
     """
@@ -700,9 +760,12 @@ def evaluate_run(run_diagnostics):
     f.write(f"CIP neff requested = {run_diagnostics['CIP_neff']}]\n")
     f.write(f"CIP neff achieved = {run_diagnostics['CIP_neff_achieved']}\n")
     CIP_is_good = True
+    first_iter_neff = run_diagnostics['CIP_neff'][list(run_diagnostics['CIP_neff'].keys())[0]]
     last_iter_neff = run_diagnostics['CIP_neff'][list(run_diagnostics['CIP_neff'].keys())[-1]]
     last_iter_neff_achieved = run_diagnostics['CIP_neff_achieved'][list(run_diagnostics['CIP_neff_achieved'].keys())[-1]]
-    if last_iter_neff > last_iter_neff_achieved:
+    if first_iter_neff <= last_iter_neff_achieved <= last_iter_neff and first_iter_neff!=last_iter_neff:
+        f.write(f"\t--> neff has not been reached, the posterior distribution may be wider and/or less smooth. To address this, try narrowing the parameter space or switching to a different sampler. Alternatively, you can reduce the neff for each CIP job (>10) and increase the number of CIP jobs submitted per iteration. However, it seems like it has reached neff as set by the CIP for earlier iterations (CIP_worker0.sub), so if the run is ongoing let it continue.\n")
+    elif last_iter_neff > last_iter_neff_achieved:
         f.write(f"\t--> neff has not been reached, the posterior distribution may be wider and/or less smooth. To address this, try narrowing the parameter space or switching to a different sampler. Alternatively, you can reduce the neff for each CIP job (>10) and increase the number of CIP jobs submitted per iteration.\n")
         CIP_is_good = False
     # CIP JSD
@@ -781,6 +844,9 @@ try:
     plot_high_likelihood_expoloration(path)
 except:
     print("Couldn't plot high likelihod exploration plot.")
+
+# write sample statistics
+write_sample_statistics(main_posterior_files[-1])
 
 # plot histograms
 plot_histograms(main_posterior_files, plot_title="Main", iterations=main_iterations, JSD = False)
