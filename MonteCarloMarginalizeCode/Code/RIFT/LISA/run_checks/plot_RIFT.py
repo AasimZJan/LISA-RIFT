@@ -13,6 +13,7 @@ from collections import namedtuple
 import sys
 import RIFT.lalsimutils as lsu
 from argparse import ArgumentParser
+import corner
 # Matplotlib configuration
 plt.rcParams.update({
     'axes.labelsize': 16,
@@ -71,7 +72,7 @@ run_diagnostics = {
 ###########################################################################################
 # Functions
 ###########################################################################################
-def get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=False):
+def get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=False, provide_max_lnL_point=False):
     """
     Analyzes the lnL values from an all.net file to find high likelihood points
     and assess their Monte Carlo error.
@@ -96,12 +97,15 @@ def get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=
     if LISA and not(eccentricity):
         lnL = data[:, 11]
         error = data[:, 12]
+        samples = data[:,:11]
     if LISA and eccentricity:
         lnL = data[:,13]
         error = data[:,14]
+        samples = data[:,:13]
     if not(LISA) and eccentricity:
         lnL = data[:, 11]
         error = data[:, 12]
+        samples = data[:,:11]
     
     # Remove NaN values from lnL
     total_points = len(lnL)
@@ -109,6 +113,9 @@ def get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=
 
     # Find high likelihood points based on lnL_cut
     max_lnL = np.max(lnL)
+    man_lnL_index = np.argmax(lnL)
+    if provide_max_lnL_point:
+        return samples[man_lnL_index], max_lnL
     if composite:
         max_lnL_composite = max_lnL
         max_lnL = run_diagnostics["max_lnL"]
@@ -576,6 +583,9 @@ def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, para
     if plot_title != "Final":
         plotting_command += "--use-all-composite-but-grayscale "
 
+    if plot_title == "extrinsic" and not(LISA):
+        plotting_command += "--parameter ra --parameter dec "
+
     # Add parameter options to the command
     for parameter in parameters:
         plotting_command += f"--parameter {parameter} "
@@ -714,7 +724,53 @@ def write_sample_statistics(posterior, parameters=["mc","eta", "m1", "m2", "s1z"
                 parameter_extract = "theta"
             line += f", truth here = {P.extract_param(parameter_extract)/factor:0.3f}"
         f.write(line + "\n")
+    max_sample, lnL = get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=False, provide_max_lnL_point=True)
     f.close()
+
+def plot_exploration_corner(all_net_path):
+    """
+    Generates and saves a corner plot for all the points at which marginalized likelihood was evaluated, effectively acting as the exploration plot.
+
+    Args:
+        all_net_path (str): File path to all.net
+    """
+    print('\nPlotting exploration corner')
+    use_cols = [1,2,5,8]
+    if use_truths:
+        P = lsu.xml_to_ChooseWaveformParams_array(truth_file_path)[0]
+        truths = [ P.extract_param('m1')/lsu.lsu_MSUN, P.extract_param('m2')/lsu.lsu_MSUN, P.extract_param('s1z'), P.extract_param('s2z')]
+    if LISA and not(eccentricity):
+        use_cols.append([9,10])
+        labels=[r"$m_1$ $(\times 10^6 M_\odot)$", r"$m_2$ $(\times 10^6 M_\odot)$", r"$a_{1z}$", r"$a_{2z}$", r"$\lambda$", r"$\beta$"]
+        if use_truths:
+             truths.append([P.extract_param('lambda'),  P.extract_param('beta')])
+    if LISA and eccentricity:
+        use_cols.append([9,10,11,12])
+        labels=[r"$m_1$ $(\times 10^6 M_\odot)$", r"$m_2$ $(\times 10^6 M_\odot)$", r"$a_{1z}$", r"$a_{2z}$", r"$\lambda$", r"$\beta$", r'$e_{gw}$', '$l_{gw}$']
+        if use_truths:
+            truths.append([P.extract_param('lambda'),  P.extract_param('beta'), P.extract_param('eccentricity'), P.extract_param('meanPerAno')])
+    if not(LISA) and eccentricity:
+        use_cols.append([9,10])
+        labels=[r"$m_1$", r"$m_2$", r"$a_{1z}$", r"$a_{2z}$",  r'$e_{gw}$', '$l_{gw}$']
+        if use_truths:
+            truths.append([P.extract_param('eccentricity'), P.extract_param('meanPerAno')])
+    # Load all.net
+    def flatten(arg):
+        if not isinstance(arg, list): # if not list
+            return [arg]
+        return [x for sub in arg for x in flatten(sub)]
+
+    use_cols = flatten(use_cols)
+    truths = flatten(truths) 
+    data = np.loadtxt(all_net_path, usecols = use_cols)
+    # If else statement to check if truths are provided are not
+    if use_truths:
+        P = lsu.xml_to_ChooseWaveformParams_array(truth_file_path)[0]
+        fig = corner.corner(data,  truth_color="black", truths=truths, color='cornflowerblue', smooth=None,smooth1d =None, linewidth = 1.0,  plot_datapoints=True, plot_density=False, no_fill_contours=True, contours=False, levels=[0.0], contour_kwargs={"linewidths":1.0},hist_kwargs={"linewidth":1.0, "density": True},labels=labels)
+    else:
+        fig = corner.corner(data,  color='cornflowerblue', smooth=None,smooth1d =None, linewidth = 1.0,  plot_datapoints=True, plot_density=False, no_fill_contours=True, contours=False, levels=[0.0], contour_kwargs={"linewidths":1.0},hist_kwargs={"linewidth":1.0, "density": True},labels=labels)
+    # Save this figure
+    fig.savefig(f'plots/exploration_corner.png')
 
 
 def evaluate_run(run_diagnostics):
@@ -832,6 +888,13 @@ except:
     # run this function so some information in run_diagnostics dict gets populated.
     get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=False)
     print("Couldn't plot CIP neff per worker for each iteration.")
+
+# plot exploration corner
+try:
+    plot_exploration_corner(all_net_path)
+except Exception as e:
+    print(e)
+    print("Couldn't plot exploration corner plot")
 
 # plot sampled max lnL
 try:
