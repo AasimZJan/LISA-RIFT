@@ -291,7 +291,7 @@ def get_ldc_mbhb_params(h5_path, dataset = "radler", sangria_signal=0):
         down_psi = np.array(np.sin(theL)*np.sin(params["lambda"] - phiL))
         params["psi"] = np.array(np.arctan2(up_psi, down_psi))
         params["z"] = np.array(pGW.get("Redshift"))
-    if dataset == 'sangria':
+    elif dataset == 'sangria':
         pGW = data['sky']['mbhb']['cat'][sangria_signal]
         # Extract params
         params = {}
@@ -319,9 +319,10 @@ def get_ldc_mbhb_params(h5_path, dataset = "radler", sangria_signal=0):
         down_psi = np.array(np.sin(theL)*np.sin(params["lambda"] - phiL))
         params["psi"] = np.array(np.arctan2(up_psi, down_psi))
         params["z"] = np.array(pGW["Redshift"])
+
+    else:
+        print(f"Do not recognize dataset {dataset}. Only 'sangria' and 'radler' are recognized.")
     
-
-
     return params
 
 def modpi(phase):
