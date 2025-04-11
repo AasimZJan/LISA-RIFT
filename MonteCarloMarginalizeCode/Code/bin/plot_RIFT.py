@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""This code is meant to check the health of a RIFT run as it progresses and after it has finished. python plot_RIFT.py path/to/rundir/"""
+"""This code is meant to check the health of a RIFT run as it progresses and after it has finished."""
 ###########################################################################################
 # Import
 ###########################################################################################
@@ -90,6 +90,7 @@ def get_lnL_cut_points(all_net_path, lnL_cut=15, error_threshold=0.4, composite=
     data = np.loadtxt(all_net_path)
     
     # Extract lnL and error columns
+    samples = data[:, :9]
     lnL = data[:, 9]
     error = data[:, 10]
     
@@ -579,12 +580,15 @@ def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, para
     # Include truth file if required
     if use_truths:
         plotting_command += f"--truth-file {truth_file_path} "
-
+    
+    # plot grey points (low lnL) when showing multiple iterations
     if plot_title != "Final":
         plotting_command += "--use-all-composite-but-grayscale "
-
+    
+    # for extrinsic, plot ra and dec if not LISA run
     if plot_title == "extrinsic" and not(LISA):
-        plotting_command += "--parameter ra --parameter dec "
+        parameters.append("ra")
+        parameters.append("dec")
 
     # Add parameter options to the command
     for parameter in parameters:
