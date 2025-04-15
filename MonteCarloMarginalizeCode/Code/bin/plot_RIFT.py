@@ -34,14 +34,18 @@ __author__ = "A. Jan"
 parser = ArgumentParser()
 parser.add_argument("--path", default = os.getcwd(), help =  "path to run directory")
 parser.add_argument("--LISA", action = "store_true", help = "Use this argument if analyzing a LISA run")
-parser.add_argument("--eccentricity", action = "store_true", help = "Use this argument if the run has eccentricity")
+parser.add_argument("--eccentricity", action = "store_true", help = "Use this argument if the run has eccentricity and meanPerAno")
+parser.add_argument("--precessing", action = "store_true", help = "Use this argument if the run is precessing")
 opts = parser.parse_args()
 path = opts.path
 LISA = opts.LISA
 eccentricity = opts.eccentricity
+precessing = opts.precessing
 
 if eccentricity:
     print("Eccentricity set to True")
+if precessing:
+    print("Precessing set to True")
 
 
 # Locate corner plot executable
@@ -195,8 +199,16 @@ def get_index_for_parameter(parameter):
     parameter_indices = {
         "mc": 8,
         "mtot": 22,
+        "a1x":2,
+        "s1x":2,
+        "a1y":3,
+        "s1y":3,
         "a1z": 4,
         "s1z": 4,
+        "a2x":5,
+        "s2x":5,
+        "a2y":6,
+        "s2y":6,
         "a2z": 7,
         "s2z": 7,
         "eta": 9,
@@ -511,6 +523,11 @@ def plot_histograms(sorted_posterior_file_paths, plot_title, iterations = None, 
     if eccentricity:
         parameters.append("eccentricity")
         parameters.append("meanPerAno")
+    if precessing:
+        parameters.append("s1x")
+        parameters.append("s1y")
+        parameters.append("s2x")
+        parameters.append("s2y")
     for parameter in parameters:
         print(f"Plotting histogram for {parameter}")
         fig, ax = plt.subplots()
@@ -589,6 +606,12 @@ def plot_corner(sorted_posterior_file_paths, plot_title, iterations = None, para
     if plot_title == "extrinsic" and not(LISA):
         parameters.append("ra")
         parameters.append("dec")
+    # add transverse spin is precessing
+    if precessing:
+        parameters.append("s1x")
+        parameters.append("s1y")
+        parameters.append("s2x")
+        parameters.append("s2y")
 
     # Add parameter options to the command
     for parameter in parameters:
@@ -641,6 +664,11 @@ def plot_JS_divergence(posterior_1_path, posterior_2_path, posterior_3_path=None
     if eccentricity:
         parameters.append("eccentricity")
         parameters.append("meanPerAno")
+    if precessing:
+        parameters.append("s1x")
+        parameters.append("s1y")
+        parameters.append("s2x")
+        parameters.append("s2y")
     print(f"\nPlotting Jensen Shannon Divergence for {parameters} with threshold {threshold}\n")
     posterior_data1 = np.loadtxt(posterior_1_path)
     posterior_data2 = np.loadtxt(posterior_2_path)
@@ -699,6 +727,11 @@ def write_sample_statistics(posterior, parameters=["mc","eta", "m1", "m2", "s1z"
     if eccentricity:
         parameters.append("eccentricity")
         parameters.append("meanPerAno")
+    if precessing:
+        parameters.append("s1x")
+        parameters.append("s1y")
+        parameters.append("s2x")
+        parameters.append("s2y")
     if use_truths:
         P = lsu.xml_to_ChooseWaveformParams_array(truth_file_path)[0]
     print(f"\nWriting sample statistics for parameters: {parameters}")
