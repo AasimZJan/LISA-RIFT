@@ -304,6 +304,7 @@ parser.add_argument("--search-reflected-sky-mode-iteration", default=None, help=
 parser.add_argument("--check-posterior-railing", default=False, help="Checks the railing of the posterior and if it finds it it broadens the prior ranges")
 parser.add_argument("--check-posterior-railing-iteration", default=None, help="Iteration at which the code should check for raling, if None it will check at third to last iteration")
 parser.add_argument("--railing-parameters", default="[mc, eta, s1z, s2z]", help="List of parameters that we want to check the railing of parameter")
+parser.add_argument("--internal-use-high-mass-coordinates", action='store_true', help="If present, will fit in [mtot, eta, chiPlus (xi) and chiMinus] and sample in [mc, delta_mc, s1z, s2z]")
 opts=  parser.parse_args()
 
 
@@ -640,6 +641,8 @@ if opts.internal_use_amr:
     cmd += " --internal-use-amr " # minimal support performed in this routine, mainly for puff
 if opts.internal_use_aligned_phase_coordinates:
     cmd += " --internal-use-aligned-phase-coordinates "
+if opts.internal_use_high_mass_coordinates:
+    cmd += " --internal-use-high-mass-coordinates "
 if opts.internal_use_rescaled_transverse_spin_coordinates:
     cmd += " --internal-use-rescaled-transverse-spin-coordinates "
 if not(opts.internal_use_amr) and not(opts.manual_initial_grid):

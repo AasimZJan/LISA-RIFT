@@ -5390,6 +5390,34 @@ def convert_waveform_coordinates(x_in,coord_names=['mc', 'eta'],low_level_coord_
         x_out[:,indx_p_out] = np.sqrt(1-4*x_in[:,indx_eta])
         coord_names_reduced.remove('delta_mc')
 
+    # FOR LISA
+    if ('mtot' in coord_names_reduced) and ('eta' in coord_names_reduced) and ('xi' in coord_names_reduced) and ('chiMinus' in coord_names_reduced) and ('mc' in low_level_coord_names) and ('delta_mc' in low_level_coord_names) and ('s1z' in low_level_coord_names) and ('s2z' in low_level_coord_names):
+        index_pout_mtot =  coord_names.index('mtot')
+        index_pout_eta =  coord_names.index('eta')
+        index_pout_xi =  coord_names.index('xi')
+        index_pout_chiminus =  coord_names.index('chiMinus')
+
+        indx_mc = low_level_coord_names.index('mc')
+        indx_delta = low_level_coord_names.index('delta_mc')
+        indx_s1z = low_level_coord_names.index('s1z')
+        indx_s2z = low_level_coord_names.index('s2z')
+
+        eta_vals = 0.25*(1- x_in[:,indx_delta]**2)
+        m1_vals,m2_vals = m1m2(x_in[:,indx_mc], eta_vals)
+        mtot_vals = m1_vals + m2_vals
+        chiMinus_vals = (m1_vals*x_in[:,indx_s1z] - m2_vals*x_in[:,indx_s2z])/(m1_vals+m2_vals)
+        xi_vals = (m1_vals*x_in[:,indx_s1z] + m2_vals*x_in[:,indx_s2z])/(m1_vals+m2_vals)
+
+        x_out[:,index_pout_mtot] = mtot_vals
+        coord_names_reduced.remove('mtot')
+        x_out[:,index_pout_eta] = eta_vals
+        coord_names_reduced.remove('eta')
+        x_out[:,index_pout_xi] = xi_vals
+        coord_names_reduced.remove('xi')
+        x_out[:,index_pout_chiminus] = chiMinus_vals
+        coord_names_reduced.remove('chiMinus')
+
+
     # Check for common coordinates we need to transform: xi, chiMinus as the most common, from cartesian
     if ('xi' in coord_names_reduced) and ('s1z' in low_level_coord_names) and ('s2z' in low_level_coord_names) and ('mc' in low_level_coord_names):
         indx_p_out = coord_names.index('xi')

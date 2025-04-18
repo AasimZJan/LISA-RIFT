@@ -249,6 +249,7 @@ parser.add_argument("--verbose",action='store_true')
 parser.add_argument("--LISA", default=False, action="store_true", help="Let the code know that a LISA signal is being analysed so 1) all spins are fitted in earlier iterations")
 parser.add_argument("--h5-frame", default=None, action="store_true", help="Let the code know that the frames are in h5 format and not in gwf, the information is passed down to ILE scripts")
 parser.add_argument("--data-integration-window-half", default=None, help="For longer signal srate might be such the integration range is smaller than deltaT, so need to redefine it. By default it takes a value of 300 ms")
+parser.add_argument("--internal-use-high-mass-coordinates", action='store_true', help="If present, will fit in [mtot, eta, chiPlus (xi) and chiMinus] and sample in [mc, delta_mc, s1z, s2z]")
 opts=  parser.parse_args()
 
 if opts.assume_matter_but_primary_bh:
@@ -1416,8 +1417,10 @@ if opts.propose_fit_strategy:
     print(" Fit strategy NOT IMPLEMENTED -- currently just provides basic parameterization options. Need to work in real strategies (e.g., cip-arg-list)")
     lnLoffset_late = 15 # default
     helper_cip_args += ' --no-plots --fit-method {}  '.format(fit_method)
-    if not opts.internal_use_aligned_phase_coordinates:
+    if not opts.internal_use_aligned_phase_coordinates and not(opts.internal_use_high_mass_coordinates):
         helper_cip_args += '   --parameter mc --parameter delta_mc '
+    elif opts.internal_use_high_mass_coordinates:
+        helper_cip_args += ' --parameter-implied mtot --parameter-implied eta --parameter-nofit mc --parameter delta_mc '
     else:
         helper_cip_args += " --parameter-implied mu1 --parameter-implied mu2 --parameter-nofit mc --parameter delta_mc "  
     if 'gp' in fit_method:
@@ -1488,6 +1491,10 @@ if opts.propose_fit_strategy:
                     helper_cip_arg_list[0] += " --parameter-nofit s1z --parameter-nofit s2z  "
                 for indx in np.arange(1,len(helper_cip_arg_list)): # allow for variable numbers of subsequent steps, with different settings
                     helper_cip_arg_list[indx] += ' --parameter-implied chiMinus --parameter-nofit s1z --parameter-nofit s2z '
+            elif opts.internal_use_high_mass_coordinates:
+                helper_cip_args += ' --parameter-implied xi --parameter-implied chiMinus --parameter-nofit s1z --parameter-nofit s2z '
+                for indx in np.arange(0, len(helper_cip_arg_list)):
+                    helper_cip_arg_list[indx] += ' --parameter-implied xi --parameter-implied chiMinus --parameter-nofit s1z --parameter-nofit s2z '
             elif not opts.assume_highq:
                 # normal aligned spin
                 helper_cip_args += ' --parameter-implied xi  --parameter-nofit s1z --parameter-nofit s2z ' # --parameter-implied chiMinus  # keep chiMinus out, until we add flexible tools
