@@ -1420,7 +1420,7 @@ if opts.propose_fit_strategy:
     if not opts.internal_use_aligned_phase_coordinates and not(opts.internal_use_high_mass_coordinates):
         helper_cip_args += '   --parameter mc --parameter delta_mc '
     elif opts.internal_use_high_mass_coordinates:
-        helper_cip_args += ' --parameter-implied mtot --parameter-implied eta --parameter-nofit mc --parameter delta_mc '
+        helper_cip_args += ' --parameter-implied mtot --parameter-implied eta --parameter-nofit mc --parameter-nofit delta_mc '
     else:
         helper_cip_args += " --parameter-implied mu1 --parameter-implied mu2 --parameter-nofit mc --parameter delta_mc "  
     if 'gp' in fit_method:
