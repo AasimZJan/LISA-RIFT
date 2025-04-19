@@ -390,9 +390,9 @@ def get_tf_from_phase_dict(hlm, fmax, fref=None, debug=True, shift=True):#tested
         phase_22_current = phase_dict[2,2][index_at_fref]
         
         # Time shift should be a multiple of deltaT
-        #time_shift = tf_22_current
+        time_shift = tf_22_current
         deltaT_here = 1/2/np.abs(freq[0])  # fNyq = 1/2/deltaT
-        time_shift = round(tf_22_current/deltaT_here) *  deltaT_here # integer multiple (closest) of deltaT
+        #time_shift = round(tf_22_current/deltaT_here) *  deltaT_here # integer multiple (closest) of deltaT
         reference_phase = 0.0
         
         # for loop needs to start with (2,2) mode
