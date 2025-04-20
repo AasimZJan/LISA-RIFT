@@ -22,7 +22,7 @@ import lal
 import lalsimulation as lalsim
 import RIFT.lalsimutils as lalsimutils
 import configparser as ConfigParser
-
+import RIFT.LISA.utils.utils as lisa_utils
 if ( 'RIFT_LOWLATENCY'  in os.environ):
     assume_lowlatency = True
 else:
@@ -172,7 +172,7 @@ parser.add_argument("--internal-marginalize-distance",action='store_true',help="
 parser.add_argument("--internal-marginalize-distance-file",help="Filename for marginalization file.  You MUST make sure the max distance is set correctly")
 parser.add_argument("--internal-distance-max",type=float,help="If present, the code will use this as the upper limit on distance (overriding the distance maximum in the ini file, or any other setting). *required* to use internal-marginalize-distance in most circumstances")
 parser.add_argument("--internal-correlate-default",action='store_true',help='Force joint sampling in mc,delta_mc, s1z and possibly s2z')
-parser.add_argument("--internal-force-iterations",type=int,default=None,help="If inteeger provided, overrides internal guidance on number of iterations, attempts to force prolonged run. By default puts convergence tests on")
+parser.add_argument("--internal-force-iterations",type=int,default=None,help="If integer provided, overrides internal guidance on number of iterations, attempts to force prolonged run. By default puts convergence tests on")
 parser.add_argument("--internal-test-convergence-threshold",type=float,default=None,help="The value of the threshold. 0.02 has been default. If not specified, left out of helper command line (where default is maintained) ")
 parser.add_argument("--internal-flat-strategy",action='store_true',help="Use the same CIP options for every iteration, with convergence tests on.  Passes --test-convergence, ")
 parser.add_argument("--internal-use-amr",action='store_true',help="Changes refinement strategy (and initial grid) to use. PRESENTLY WE CAN'T MIX AND MATCH AMR, CIP ITERATIONS, so this is fixed for the whole run right now; use continuation and 'fetch' to augment")
@@ -285,6 +285,7 @@ parser.add_argument("--ecliptic-longitude", default=None)
 parser.add_argument("--ecliptic-latitude", default=None)
 parser.add_argument("--ile-memory", default=4096, help="ILE memory")
 parser.add_argument("--puff-iterations", default=5, help="Number of iterations that will be puffed.")
+parser.add_argument("--puff-factor", default=2, help="puff factor, the covariance of the existing samples get multiplied by this factor")
 parser.add_argument("--psd-directory", default=os.getcwd(), help="Path where all the psds are located, they should be named as ifo-psd.xml.gz, where for LISA ifo is A, E, and T")
 # LISA CIP
 parser.add_argument("--downselect-parameter-range", default="[1,1000]", help="m2 downselect parameter range, default being [1,1000] in CIP.") 
@@ -294,8 +295,16 @@ parser.add_argument("--force-s1z-range", default=None, help="s1z range")
 parser.add_argument("--force-s2z-range", default=None, help="s2z range")
 parser.add_argument("--force-lambda-range", default=None, help="lambda range")
 parser.add_argument("--force-beta-range", default=None, help="beta range")
+parser.add_argument("--force-eccentricity-range", default=None, help="eccentricity range")
+parser.add_argument("--force-meanPerAno-range", default=None, help="meanPerAno range")
 parser.add_argument("--force-cip-neff", default=None, help="Force neff for intermediate steps, for really high SNRs you should request a high neff while asking for low number of samples (20 neff and 2 samples) per job")
 parser.add_argument("--cip-request-disk", default="10M", help="Request disk for CIP, will need around 20M for when all.net had  >10^5 points")
+parser.add_argument("--search-reflected-sky-mode", default=False, help="Use the transformation relation between reflected and true sky mode.")
+parser.add_argument("--search-reflected-sky-mode-iteration", default=None, help="Iteration at which the code should search for reflected mode, if None will search and n-2th iteration")
+parser.add_argument("--check-posterior-railing", default=False, help="Checks the railing of the posterior and if it finds it it broadens the prior ranges")
+parser.add_argument("--check-posterior-railing-iteration", default=None, help="Iteration at which the code should check for raling, if None it will check at third to last iteration")
+parser.add_argument("--railing-parameters", default="[mc, eta, s1z, s2z]", help="List of parameters that we want to check the railing of parameter")
+parser.add_argument("--internal-use-high-mass-coordinates", action='store_true', help="If present, will fit in [mtot, eta, chiPlus (xi) and chiMinus] and sample in [mc, delta_mc, s1z, s2z]")
 opts=  parser.parse_args()
 
 
@@ -632,6 +641,8 @@ if opts.internal_use_amr:
     cmd += " --internal-use-amr " # minimal support performed in this routine, mainly for puff
 if opts.internal_use_aligned_phase_coordinates:
     cmd += " --internal-use-aligned-phase-coordinates "
+if opts.internal_use_high_mass_coordinates:
+    cmd += " --internal-use-high-mass-coordinates "
 if opts.internal_use_rescaled_transverse_spin_coordinates:
     cmd += " --internal-use-rescaled-transverse-spin-coordinates "
 if not(opts.internal_use_amr) and not(opts.manual_initial_grid):
@@ -860,8 +871,9 @@ if opts.LISA:
     if opts.h5_frame:
         line += "--h5-frame "
     line += "--data-integration-window-half {} ".format(opts.data_integration_window_half) 
-    if opts.modes: 
-        line += "--modes {} ".format(opts.modes)
+    if opts.modes:
+        modes = lisa_utils.check_modes_input((eval(opts.modes)), only_positive_modes = True) 
+        line += "--modes {} ".format(modes)
     if opts.lisa_fixed_sky:
         line +=" --lisa-fixed-sky True --ecliptic-latitude {} --ecliptic-longitude {} ".format(opts.ecliptic_latitude, opts.ecliptic_longitude)
     line = line.replace('--declination-cosine-sampler', '')
@@ -1044,6 +1056,10 @@ for indx in np.arange(len(instructions_cip)):
         line +=" --beta-range " + str(opts.force_beta_range).replace(' ','')
     if not(opts.force_lambda_range is None) and opts.lisa_fixed_sky is False:
         line +=" --lambda-range " + str(opts.force_lambda_range).replace(' ','')
+    if not(opts.force_eccentricity_range is None):
+        line +=" --eccentricity-range " + str(opts.force_eccentricity_range).replace(' ','')
+    if not(opts.force_meanPerAno_range is None):
+        line +=" --meanPerAno-range " +str(opts.force_meanPerAno_range).replace(' ','')
     if not(opts.M_max_cut is None):
         line += " --M-max-cut {}".format(opts.M_max_cut) 
     if not(opts.allow_subsolar):
@@ -1142,7 +1158,9 @@ for indx in np.arange(len(instructions_cip)):
         line += " --fit-save-gp my_gp "  # fiducial filename, stored in each iteration
     if not(opts.lisa_fixed_sky): # fit and sample over sky location
         line += " --parameter lambda --parameter beta "
-    if opts.assume_eccentric:
+    if opts.assume_eccentric and opts.LISA:
+        line += " --parameter eccentricity --parameter meanPerAno  --use-eccentricity "
+    if opts.assume_eccentric and not(opts.LISA):
         if not(opts.internal_use_aligned_phase_coordinates):
             line = line.replace('parameter mc', 'parameter mc --parameter eccentricity --use-eccentricity')
         else:
@@ -1213,13 +1231,14 @@ puff_params = ' '.join(instructions_puff)
 if opts.assume_matter:
 #    puff_params += " --parameter LambdaTilde "  # should already be present
     puff_max_it +=5   # make sure we resolve the correlations
-if opts.assume_eccentric:
+if opts.assume_eccentric and not(opts.LISA):
         puff_params += " --parameter eccentricity --downselect-parameter eccentricity --downselect-parameter-range '[0,0.9]' "
+if opts.assume_eccentric and opts.LISA:
+        puff_params += f" --parameter eccentricity --downselect-parameter eccentricity --downselect-parameter-range {str(opts.force_eccentricity_range).replace(' ','')} --parameter meanPerAno --downselect-parameter meanPerAno --downselect-parameter-range {str(opts.force_meanPerAno_range).replace(' ','')} "
 if opts.assume_highq:
     puff_params = puff_params.replace(' delta_mc ', ' eta ')  # use natural coordinates in the high q strategy. May want to do this always
     puff_max_it +=3
-#if opts.LISA:
-#    puff_max_it +=5 # need to be able to resolve tails well
+puff_params.replace(f" puff-factor 2", " puff-factor {float(opts.puff_factor)}")
 with open("args_puff.txt",'w') as f:
         puff_args =''  # note used below
         if opts.force_chi_max and not(opts.force_chi_small_max) and not(opts.LISA):
@@ -1316,6 +1335,17 @@ cepp = "create_event_parameter_pipeline_BasicIteration"
 if opts.use_subdags:
     cepp = "create_event_parameter_pipeline_AlternateIteration"
 cmd =cepp+ "  --ile-n-events-to-analyze {} --input-grid proposed-grid.xml.gz --ile-exe  `which integrate_likelihood_extrinsic_batchmode`   --ile-args `pwd`/args_ile.txt --cip-args-list args_cip_list.txt --test-args args_test.txt --request-memory-CIP {} --n-samples-per-job ".format(n_jobs_per_worker,cip_mem) + str(npts_it) + " --request-memory-ILE " + str(opts.ile_memory) + " --working-directory `pwd` --n-iterations " + str(n_iterations) + " --n-iterations-subdag-max {} ".format(opts.internal_n_iterations_subdag_max) + "  --n-copies {} ".format(opts.ile_copies) + "   --ile-retries "+ str(opts.ile_retries) + " --general-retries " + str(opts.general_retries) + " --cip-request-disk " + str(opts.cip_request_disk)
+
+if opts.LISA and opts.search_reflected_sky_mode:
+    cmd += f" --search-reflected-sky-mode True --lisa-reference-time {opts.lisa_reference_time} "
+    # if the user has not provided the iteration, the code decides it to be (n-2)th iteration
+    if not(opts.search_reflected_sky_mode_iteration is None):
+    	cmd += f" --search-reflected-sky-mode-iteration {opts.search_reflected_sky_mode_iteration} "
+if opts.check_posterior_railing:
+    cmd += f" --check-posterior-railing True --railing-parameters {opts.railing_parameters} "
+    if not(opts.check_posterior_railing_iteration is None):
+    	cmd += f" --check-posterior-railing-iteration {opts.check_posterior_railing_iteration}"
+
 if opts.assume_matter or opts.assume_eccentric:
     cmd +=  " --convert-args `pwd`/helper_convert_args.txt "
 if not(opts.ile_runtime_max_minutes is None):

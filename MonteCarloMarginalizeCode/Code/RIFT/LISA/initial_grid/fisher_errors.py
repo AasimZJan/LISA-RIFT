@@ -4,6 +4,7 @@
 import numpy as np
 import RIFT.lalsimutils as lsu
 from RIFT.LISA.response.LISA_response import *
+from RIFT.LISA.utils.utils import *
 from argparse import ArgumentParser
 from scipy.interpolate import interp1d
 import os
@@ -134,6 +135,9 @@ def get_spin_error(eta, q, a1z, a2z, eta_error, beta_error, sigma_error):
     if round(a1z,4)==round(a2z,4):
         a1z = a1z + 0.001 * a1z
         a2z = a2z - 0.001 * a2z
+    if round(a1z,3)==round(a2z,3)==0.0:
+        a1z = -0.4
+        a2z = 0.4
 
     c1 = sigma_error - eta_error/48 * (474*a1z*a2z)
     a1 = eta/48 * 474 * a2z
@@ -190,18 +194,44 @@ def get_error_bounds(P_inj, snr, psd_path):
     # Calculate fisher matrix
     tau_ij, inv_tau_ij = get_fisher_matrix(Mc, eta, sigma, beta, fvals, psd_vals, deltaF, wf)
     if eta < 0.24:
-        factor_eta = 12.5
+        factor_eta = 20
     if eta >=0.24: # the errors estimates seem to be large for q~1 case.
-        factor_eta = 1.0
-    factor_mc = 50
-    factor_spin1 = 60
+        factor_eta = 2.5
+    factor_mc = 60
+    factor_spin1 = 80
     factor_spin2 = 60
     spin_bounds = get_spin_error(eta, q, P_inj.s1z, P_inj.s2z, (np.sqrt(1/tau_ij[3,3]))*eta, np.sqrt(1/tau_ij[4,4]), np.sqrt(1/tau_ij[5,5]))
     
     print(f"Mc span = {2*factor_mc*np.sqrt(1/tau_ij[2,2])*mc}, eta span = {2*np.sqrt(1/tau_ij[3,3])*eta*factor_eta}, s1z span = {2*factor_spin1*spin_bounds[0]}, s2z span = {2*factor_spin2*spin_bounds[1]}, beta span = {0.036*(210/snr)**2}, lambda span = {0.044*(210/snr)**2}")
 
+    mc_min, mc_max = mc - factor_mc*np.sqrt(1/tau_ij[2,2])*mc, mc + factor_mc*np.sqrt(1/tau_ij[2,2])*mc
+    eta_min, eta_max = eta-(np.sqrt(1/tau_ij[3,3]))*eta*factor_eta, eta+(np.sqrt(1/tau_ij[3,3]))*eta*factor_eta
+    if eta_min < 0:
+        eta_min = 0.01
+    if eta_max >= 0.25:
+        eta_max = 0.249999999999999999999
+    s1z_min, s1z_max =  P_inj.s1z - factor_spin1*spin_bounds[0], P_inj.s1z + factor_spin1*spin_bounds[0]
+    if s1z_min <= -1.0:
+        s1z_min = -0.9
+    if s1z_max >= 1.0:
+        s1z_max = 0.9
+    s2z_min, s2z_max =  P_inj.s2z - factor_spin2*spin_bounds[1], P_inj.s2z + factor_spin2*spin_bounds[1]
+    if s2z_min <= -1.0:
+        s2z_min = -0.9
+    if s2z_max >= 1.0:
+        s2z_max = 0.9
+    beta_min, beta_max = P_inj.theta - 0.018*(210/snr), P_inj.theta + 0.018*(210/snr)
+    if beta_min <= -np.pi/2:
+        beta_min = -np.pi/2
+    if beta_max >= np.pi/2:
+        beta_max = np,pi/2
+    lamda_min, lamda_max =  P_inj.phi - 0.022*(210/snr), P_inj.phi + 0.022*(210/snr)
+    if lamda_min <= 0.0:
+        lamda_min = 0.0
+    if lamda_max >= 2*np.pi:
+        lamda_max = 2*np.pi
 
-    return np.array([ mc - factor_mc*np.sqrt(1/tau_ij[2,2])*mc, mc + factor_mc*np.sqrt(1/tau_ij[2,2])*mc, eta-(np.sqrt(1/tau_ij[3,3]))*eta*factor_eta, eta+(np.sqrt(1/tau_ij[3,3]))*eta*factor_eta, P_inj.s1z - factor_spin1*spin_bounds[0], P_inj.s1z + factor_spin1*spin_bounds[0], P_inj.s2z - factor_spin2*spin_bounds[1],  P_inj.s2z + factor_spin2*spin_bounds[1], P_inj.theta - 0.018*(210/snr), P_inj.theta + 0.018*(210/snr),  P_inj.phi - 0.022*(210/snr), P_inj.phi + 0.022*(210/snr)])
+    return np.array([mc_min, mc_max, eta_min, eta_max, s1z_min, s1z_max, s2z_min, s2z_max, beta_min, beta_max, lamda_min, lamda_max])
 
 
 ###########################################################################################
@@ -214,7 +244,9 @@ if __name__ =='__main__':
     parser.add_argument("--snr", help="SNR of the signal")
     parser.add_argument("--snr-fmin", help="fmin used in snr calculations", default=0.0001)
     parser.add_argument("--generate-grid", help="Use the fisherbounds to generate grid", default=True)
-    parser.add_argument("--points", help="number of points in the grid", default=25000)
+    parser.add_argument("--points", help="number of points in the grid", default=50000)
+    parser.add_argument("--include-reflected-mode", action="store_true", help="Ask the code to include the reflected mode in the grid.")
+    parser.add_argument("--include-eccentricity", action="store_true", help="Include eccentricity and meanPerAno in grid generation")
     opts = parser.parse_args()
     print(f"Loading file:\n {opts.inj}")
     P_inj_list = lsu.xml_to_ChooseWaveformParams_array(opts.inj)
@@ -223,18 +255,19 @@ if __name__ =='__main__':
     print(f"m1 = {P_inj.m1/lsu.lsu_MSUN}, m2 = {P_inj.m2/lsu.lsu_MSUN}, s1z = {P_inj.s1z}, s2z = {P_inj.s2z}, beta = {P_inj.theta}, lambda = {P_inj.phi}, tref = {P_inj.tref} s")
     print("######")
     error_bounds = get_error_bounds(P_inj, float(opts.snr), opts.psd_path)
-    print(f"Mc bounds = [{error_bounds[0]:0.2f}, {error_bounds[1]:0.2f}]")
-    print(f"eta bounds = [{error_bounds[2]:0.8f}, {error_bounds[3]:0.8f}]")
-    print(f"s1z bounds = [{error_bounds[4]:0.6f}, {error_bounds[5]:0.6f}]")
-    print(f"s2z bounds = [{error_bounds[6]:0.6f}, {error_bounds[7]:0.6f}]")
-    print(f"beta bounds = [{error_bounds[8]:0.6f}, {error_bounds[9]:0.6f}]")
-    print(f"lambda bounds = [{error_bounds[10]:0.6f}, {error_bounds[11]:0.6f}]")
+    print(f"force-mc-range='[{error_bounds[0]:0.2f}, {error_bounds[1]:0.2f}]'")
+    print(f"force-eta-range='[{error_bounds[2]:0.8f}, {error_bounds[3]:0.8f}]'")
+    print(f"force-s1z-range='[{error_bounds[4]:0.6f}, {error_bounds[5]:0.6f}]'")
+    print(f"force-s2z-range='[{error_bounds[6]:0.6f}, {error_bounds[7]:0.6f}]'")
+    print(f"force-beta-range='[{error_bounds[8]:0.6f}, {error_bounds[9]:0.6f}]'")
+    print(f"force-lambda-range='[{error_bounds[10]:0.6f}, {error_bounds[11]:0.6f}]'")
     mc_span, eta_span = (error_bounds[1] - error_bounds[0]), (error_bounds[3] - error_bounds[2])
     s1z_span, s2z_span =  (error_bounds[5] - error_bounds[4]), (error_bounds[7] - error_bounds[6])
     beta_span, lambda_span =  (error_bounds[9] - error_bounds[8]), (error_bounds[11] - error_bounds[10])
+    secondary_peak = get_reflected_mode_for_skylocation(float(P_inj.tref), P_inj.phi, P_inj.theta)
+    beta_sec, lambda_sec = secondary_peak[0,2], secondary_peak[0,1]
+    print(f"Reflected peak: lambda {lambda_sec}, beta {beta_sec}")
     if opts.generate_grid:
-        import os
-        from RIFT.LISA.utils.utils import *
         cmd = f"util_ManualOverlapGrid.py --inj {opts.inj} "
         cmd += f"--parameter mc --parameter-range '[{error_bounds[0]:0.2f}, {error_bounds[1]:0.2f}]' "
         cmd += f"--parameter eta --parameter-range '[{error_bounds[2]:0.5f}, {error_bounds[3]:0.5f}]' "
@@ -243,25 +276,29 @@ if __name__ =='__main__':
         cmd += f"--random-parameter theta --random-parameter-range '[{error_bounds[8]:0.6f}, {error_bounds[9]:0.6f}]' "
         cmd += f"--random-parameter phi --random-parameter-range '[{error_bounds[10]:0.6f}, {error_bounds[11]:0.6f}]' "
         cmd += f"--grid-cartesian-npts {int(opts.points)} --skip-overlap"
+        if opts.include_eccentricity:
+            cmd+= " --random-parameter eccentricity --random-parameter-range '[0.0, 0.5]' "
+            cmd+= " --random-parameter meanPerAno --random-parameter-range '[0,6.28318]' "
         print(f"\t Generating grid\n{cmd}")
         os.system(cmd)
-        os.system('mv overlap-grid.xml.gz overlap-grid-primary.xml.gz')
+        if opts.include_reflected_mode:
+            os.system('mv overlap-grid.xml.gz overlap-grid-primary.xml.gz')
 
-        secondary_peak = get_secondary_mode_for_skylocation(float(P_inj.tref), P_inj.phi, P_inj.theta)
-        beta_sec, lambda_sec = secondary_peak[0,2], secondary_peak[0,1]
-        print(f"Secondary peak: lambda {lambda_sec}, beta {beta_sec}")
-        cmd = f"util_ManualOverlapGrid.py --inj {opts.inj} "
-        cmd += f"--parameter mc --parameter-range '[{error_bounds[0]:0.2f}, {error_bounds[1]:0.2f}]' "
-        cmd += f"--parameter eta --parameter-range '[{error_bounds[2]:0.5f}, {error_bounds[3]:0.5f}]' "
-        cmd += f"--random-parameter s1z --random-parameter-range '[{error_bounds[4]:0.6f}, {error_bounds[5]:0.6f}]' "
-        cmd += f"--random-parameter s2z --random-parameter-range '[{error_bounds[6]:0.6f}, {error_bounds[7]:0.6f}]' "
-        cmd += f"--random-parameter theta --random-parameter-range '[{beta_sec-0.5*beta_span}, {beta_sec+0.5*beta_span}]' "
-        cmd += f"--random-parameter phi --random-parameter-range '[{lambda_sec-0.5*lambda_span}, {lambda_sec+0.5*lambda_span}]' "
-        cmd += f"--grid-cartesian-npts {int(opts.points)} --skip-overlap"
-        print(f"\t Generating grid\n{cmd}")
-        os.system(cmd)
-        os.system('mv overlap-grid.xml.gz overlap-grid-secondary.xml.gz')
-        os.system('ligolw_add overlap-grid-primary.xml.gz overlap-grid-secondary.xml.gz -o overlap-grid.xml.gz')
+            cmd = f"util_ManualOverlapGrid.py --inj {opts.inj} "
+            cmd += f"--parameter mc --parameter-range '[{error_bounds[0]:0.2f}, {error_bounds[1]:0.2f}]' "
+            cmd += f"--parameter eta --parameter-range '[{error_bounds[2]:0.5f}, {error_bounds[3]:0.5f}]' "
+            cmd += f"--random-parameter s1z --random-parameter-range '[{error_bounds[4]:0.6f}, {error_bounds[5]:0.6f}]' "
+            cmd += f"--random-parameter s2z --random-parameter-range '[{error_bounds[6]:0.6f}, {error_bounds[7]:0.6f}]' "
+            cmd += f"--random-parameter theta --random-parameter-range '[{beta_sec-0.5*beta_span}, {beta_sec+0.5*beta_span}]' "
+            cmd += f"--random-parameter phi --random-parameter-range '[{lambda_sec-0.5*lambda_span}, {lambda_sec+0.5*lambda_span}]' "
+            cmd += f"--grid-cartesian-npts {int(opts.points)} --skip-overlap"
+            if opts.include_eccentricity:
+                cmd+= " --random-parameter eccentricity --random-parameter-range '[0.0, 0.5]' "
+                cmd+= " --random-parameter meanPerAno --random-parameter-range '[0,0.785]' "
+            print(f"\t Generating grid\n{cmd}")
+            os.system(cmd)
+            os.system('mv overlap-grid.xml.gz overlap-grid-secondary.xml.gz')
+            os.system('ligolw_add overlap-grid-primary.xml.gz overlap-grid-secondary.xml.gz -o overlap-grid.xml.gz')
 
 
 

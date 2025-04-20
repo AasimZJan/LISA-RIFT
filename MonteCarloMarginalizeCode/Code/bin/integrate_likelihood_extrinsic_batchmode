@@ -543,7 +543,9 @@ if opts.sim_xml:
         P.psi=0.0
         P.incl = 0.0       # only works for aligned spins. Be careful.
         #P.fref = opts.reference_freq  # twice?
-        if opts.approximant != "TaylorT4": # not default setting
+        if opts.approximant == "SEOBNRv5EHM":
+            P.approx = "SEOBNRv5EHM"
+        if opts.approximant != "TaylorT4" and opts.approximant != "SEOBNRv5EHM": # not default setting
             P.approx = lalsimutils.lalsim.GetApproximantFromString(opts.approximant)  # allow user to override the approx setting. Important for NR followup, where no approx set in sim_xml!
         if opts.approximant == "EccentricTD":
             P.phaseO = 3
@@ -1299,7 +1301,7 @@ def resample_samples_LISA(my_samples, rholms, cross_terms, right_ascension, decl
   # identifiy max lnL(t) point, and then interpolate around that point to avoid Nan weights.
   index_max_lnLt = np.argmax(lnLt[0]).flatten()
   tval_at_max = tvals[index_max_lnLt]
-  print(f"Identified max lnL(t) as {tval_at_max}s. Interpolating around that point.  Sampling for time from {tval_at_max + low_t_lim}s to {tval_at_max + high_t_lim}s with deltaT {delta_t}s.")
+  print(f"Identified max lnL(t) at {tval_at_max}s relative to reported time, interpolating around this time. Sampling for time from {tval_at_max + low_t_lim}s to {tval_at_max + high_t_lim}s with deltaT {delta_t}s.")
   
   # tvals over which we will resample
   interp_tvals  = xpy_default.arange(low_t_lim + tval_at_max, high_t_lim + tval_at_max, delta_t)
@@ -1505,7 +1507,10 @@ def analyze_event_LISA(P_list, indx_event, data_dict, psd_dict, fmax, opts, inv_
         if opts.event == None:
             event_id = -1
         # Current response only applicable to quasicircular MBHB signals. Save sky location even if not varying.
-        numpy.savetxt(fname_output_txt, numpy.array([[event_id, m1, m2, P.s1x, P.s1y, P.s1z, P.s2x, P.s2y, P.s2z, lisa_sky_lamda, lisa_sky_beta, log_res+manual_avoid_overflow_logarithm, sqrt_var_over_res, sampler.ntotal, neff ]])) 
+        if not(opts.save_eccentricity):
+            numpy.savetxt(fname_output_txt, numpy.array([[event_id, m1, m2, P.s1x, P.s1y, P.s1z, P.s2x, P.s2y, P.s2z, lisa_sky_lamda, lisa_sky_beta, log_res+manual_avoid_overflow_logarithm, sqrt_var_over_res, sampler.ntotal, neff ]]))
+        else:
+            numpy.savetxt(fname_output_txt, numpy.array([[event_id, m1, m2, P.s1x, P.s1y, P.s1z, P.s2x, P.s2y, P.s2z, lisa_sky_lamda, lisa_sky_beta, P.eccentricity, P.meanPerAno, log_res+manual_avoid_overflow_logarithm, sqrt_var_over_res, sampler.ntotal, neff ]]))
 
     # Comprehensive output (not yet provided)
     # Convert declination, inclination  parameters in sampler if needed
@@ -1553,6 +1558,10 @@ def analyze_event_LISA(P_list, indx_event, data_dict, psd_dict, fmax, opts, inv_
       else:
             samples["latitude"] = samples["declination"]
             samples["longitude"] = samples["right_ascension"]
+      # temporary solution to save skylocation parameters in the extrinsic samples for LISA
+      samples["right_ascension"] = samples["longitude"] = numpy.ones(len(samples['psi']))*lisa_sky_lamda
+      samples["declination"] = samples["latitude"] = numpy.ones(len(samples['psi']))*lisa_sky_beta      
+      #
       if "log_integrand" in samples:
         samples["loglikelihood"] = samples["log_integrand"] +  manual_avoid_overflow_logarithm
       else:
@@ -1568,7 +1577,7 @@ def analyze_event_LISA(P_list, indx_event, data_dict, psd_dict, fmax, opts, inv_
             samples["spin2y"] =numpy.ones(samples["psi"].shape)*P.s2y
             samples["spin2z"] =numpy.ones(samples["psi"].shape)*P.s2z
             samples["alpha4"] =numpy.ones(samples["psi"].shape)*P.eccentricity
-            samples["alpha5"] =numpy.ones(samples["psi"].shape)*P.lambda1
+            samples["alpha5"] =numpy.ones(samples["psi"].shape)*P.meanPerAno
             samples["alpha6"] =numpy.ones(samples["psi"].shape)*P.lambda2
             # Below exist solely to placate XML export; new issue as of latest lalsuite say 7.15+ or so
             samples["alpha2"] = numpy.zeros(samples["psi"].shape)
@@ -1580,7 +1589,7 @@ def analyze_event_LISA(P_list, indx_event, data_dict, psd_dict, fmax, opts, inv_
 #        print(samples['t_ref'] - fiducial_epoch, len(samples['t_ref']))
       xmlutils.append_samples_to_xmldoc(xmldoc, samples)
         # Extra metadata
-      dict_out={"mass1": m1, "mass2": m2, "spin1z": P.s1z, "spin2z": P.s2z, "alpha4": P.eccentricity, "alpha5":P.lambda1, "alpha6":P.lambda2, "event_duration": sqrt_var_over_res, "ttotal": sampler.ntotal}
+      dict_out={"mass1": m1, "mass2": m2, "spin1z": P.s1z, "spin2z": P.s2z, "alpha4": P.eccentricity, "alpha5":P.meanPerAno, "alpha6":P.lambda2, "event_duration": sqrt_var_over_res, "ttotal": sampler.ntotal}
 #      if 'distance' in pinned_params:
 #            dict_out['distance'] = pinned_params["distance"]
       converged_result = False

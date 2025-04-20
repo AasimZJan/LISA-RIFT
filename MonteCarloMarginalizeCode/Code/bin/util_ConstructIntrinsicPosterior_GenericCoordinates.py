@@ -373,7 +373,9 @@ parser.add_argument("--LISA", action="store_true", help="Code knows that it is b
 parser.add_argument("--s1z-range", default=None, help="s1z range")
 parser.add_argument("--s2z-range", default=None, help="s2z range")
 parser.add_argument("--beta-range",default=None, help="beta range" )
-parser.add_argument("--lambda-range",default=None, help="lambda range" )
+parser.add_argument("--lambda-range",default=None, help="lambda range")
+parser.add_argument("--eccentricity-range",default=None, help="eccentricity range")
+parser.add_argument("--meanPerAno-range",default=None, help="meanPerAno range")
 opts=  parser.parse_args()
 if not(opts.no_adapt_parameter):
     opts.no_adapt_parameter =[] # needs to default to empty list
@@ -886,6 +888,7 @@ prior_map  = { "mtot": M_prior, "q":q_prior, "s1z":s_component_uniform_prior, "s
     's2z_bar':normalized_zbar_prior,
     # Other priors
     'eccentricity':eccentricity_prior,
+    'meanPerAno':mcsampler.uniform_samp_phase,
     'chi_pavg':precession_prior,
     'mu1': unnormalized_log_prior,
     'mu2': unnormalized_uniform_prior,
@@ -908,6 +911,7 @@ prior_range_map = {"mtot": [1, 300], "q":[0.01,1], "s1z":[-0.999*chi_max,0.999*c
   'lambda_plus':[0.01,lambda_plus_max],
   'lambda_minus':[-lambda_max,lambda_max],  # will include the true region always...lots of overcoverage for small lambda, but adaptation will save us.
   'eccentricity':[ECC_MIN, ECC_MAX],
+  'meanPerAno':[0, 2*np.pi],
   'chi_pavg':[0.0,2.0],  
   # strongly recommend you do NOT use these as parameters!  Only to insure backward compatibility with LI results
   'LambdaTilde':[0.01,5000],
@@ -962,6 +966,12 @@ if not (opts.beta_range is None):
 if not (opts.lambda_range is None):
     print(f" Warning: Overriding default lambda range to {eval(opts.lambda_range)}. USE WITH CARE")
     prior_range_map['lambda']=eval(opts.lambda_range)
+if not (opts.eccentricity_range is None):
+    print(f" Warning: Overriding default eccentricity range to {eval(opts.eccentricity_range)}. USE WITH CARE")
+    prior_range_map['eccentricity']=eval(opts.eccentricity_range)
+if not (opts.meanPerAno_range is None):
+    print(f" Warning: Overriding default meanPerAno range to {eval(opts.meanPerAno_range)}. USE WITH CARE")
+    prior_range_map['meanPerAno']=eval(opts.meanPerAno_range)
 print("\n")
 ###
 ### Modify priors, as needed
@@ -1429,6 +1439,43 @@ def fit_rf(x,y,y_errors=None,fname_export='nn_fit'):
     print( "    std ", np.std(residuals), np.max(y), np.max(fn_return(x)))
     return fn_return
 
+def fit_rf_pca(x,y,y_errors=None,fname_export='nn_fit'):
+#    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.ensemble import ExtraTreesRegressor
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+    x_scaler = StandardScaler()
+    x_scaled = x_scaler.fit_transform(x)
+    pca = PCA()
+    x_pca = pca.fit_transform(x_scaled)
+    # Instantiate model. Usually not that many structures to find, don't overcomplicate
+    #   - should scale like number of samples
+    rf = ExtraTreesRegressor(n_estimators=100, verbose=True,n_jobs=-1) # no more than 5% of samples in a leaf
+
+    if y_errors is None:
+        rf.fit(x_pca,y)
+    else:
+        rf.fit(x_pca,y,sample_weight=1./y_errors**2)
+
+    ### reject points with infinities : problems for inputs
+    def fn_return(x_in,rf=rf, pca=pca, x_scaler=x_scaler):
+        f_out = -100000*np.ones(len(x_in))
+        # remove infinity or Nan
+        indx_ok = np.all(np.isfinite(x_in),axis=-1)
+        # rf internally uses float32, so we need to remove points > 10^37 or so !
+        #    ... this *should* never happen due to bounds constraints, but ...
+        indx_ok_size = np.all( np.logical_not(np.greater(np.abs(x_in),1e37)), axis=-1)
+        indx_ok = np.logical_and(indx_ok, indx_ok_size)
+
+        f_out[indx_ok] = rf.predict(pca.transform(x_scaler.transform(x_in[indx_ok])))
+        return f_out
+#    fn_return = lambda x_in: rf.predict(x_in)
+
+    print( " Demonstrating RF")   # debugging
+    residuals = rf.predict(pca.transform(x_scaler.transform(x)))-y
+    print( "    std ", np.std(residuals), np.max(y), np.max(fn_return(x)))
+    return fn_return
+
 def fit_nn_rfwrapper(x,y,y_errors=None,fname_export='nn_fit'):
     from sklearn.ensemble import RandomForestRegressor
     # Instantiate model. Usually not that many structures to find, don't overcomplicate
@@ -1622,9 +1669,12 @@ if opts.input_tides:
         print(" Revised fit coord names (for lookup) : ", coord_names) # 'eos_table_index' will be overwritten here
         print(" Revised sampling coord names  : ", low_level_coord_names)
 # LISA
-elif opts.LISA:
+elif opts.LISA and not(opts.use_eccentricity):
     # shift by two due to two skylocation parameters being present in all.net for LISA
     col_lnL +=2
+elif opts.LISA and opts.use_eccentricity:
+    print(" Eccentricity input: [",ECC_MIN, ", ",ECC_MAX, "]")
+    col_lnL += 4
 elif opts.use_eccentricity:
     print(" Eccentricity input: [",ECC_MIN, ", ",ECC_MAX, "]")
     col_lnL += 1
@@ -1719,12 +1769,17 @@ for line in dat:
         P.lambda2 = line[10]
     if opts.input_eos_index:
         P.eos_table_index = line[11]
-    if opts.use_eccentricity:
+    if not(opts.LISA) and opts.use_eccentricity:
         P.eccentricity = line[9]
     # LISA skylocation
-    if opts.LISA:
+    if opts.LISA and not(opts.use_eccentricity):
         P.phi = line[9]
         P.theta = line[10]
+    if opts.LISA and opts.use_eccentricity:
+        P.phi = line[9]
+        P.theta = line[10]
+        P.eccentricity = line[11]
+        P.meanPerAno = line[12]
     if opts.input_distance:
         P.dist = lal.PC_SI*1e6*line[9]  # Incompatible with tides, note!
     
@@ -2080,6 +2135,22 @@ elif opts.fit_method == 'rf':
         Y_err=Y_err[indx]
         dat_out_low_level_coord_names = dat_out_low_level_coord_names[indx]
     my_fit = fit_rf(X,Y,y_errors=Y_err)
+elif opts.fit_method == 'rf_pca':
+    print( " FIT METHOD ", opts.fit_method, " IS RF PCA")
+    # NO data truncation for NN needed?  To be *consistent*, have the code function the same way as the others
+    X=X[indx_ok]
+    Y=Y[indx_ok] - lnL_shift
+    Y_err = Y_err[indx_ok]
+    dat_out_low_level_coord_names =     dat_out_low_level_coord_names[indx_ok]
+    # Cap the total number of points retained, AFTER the threshold cut
+    if opts.cap_points< len(Y) and opts.cap_points> 100:
+        n_keep = opts.cap_points
+        indx = np.random.choice(np.arange(len(Y)),size=n_keep,replace=False)
+        Y=Y[indx]
+        X=X[indx]
+        Y_err=Y_err[indx]
+        dat_out_low_level_coord_names = dat_out_low_level_coord_names[indx]
+    my_fit = fit_rf_pca(X,Y,y_errors=Y_err)
 elif opts.fit_method == 'nn_rfwrapper':
     print( " FIT METHOD ", opts.fit_method, " IS NN with RF wrapper ")
     # NO data truncation for NN needed?  To be *consistent*, have the code function the same way as the others

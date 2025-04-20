@@ -331,7 +331,7 @@ def lsu_StringFromPNOrder(order):
 #
 # Class to hold arguments of ChooseWaveform functions
 #
-valid_params = ['m1', 'm2', 's1x', 's1y', 's1z', 's2x', 's2y', 's2z', 'chi1_perp', 'chi2_perp', 'chi1_perp_bar', 'chi2_perp_bar','chi1_perp_u', 'chi2_perp_u', 's1z_bar', 's2z_bar', 'lambda1', 'lambda2', 'theta','phi', 'phiref',  'psi', 'incl', 'tref', 'dist', 'mc', 'mc_ecc', 'eta', 'delta_mc', 'chi1', 'chi2', 'thetaJN', 'phiJL', 'theta1', 'theta2', 'cos_theta1', 'cos_theta2',  'theta1_Jfix', 'theta2_Jfix', 'psiJ', 'beta', 'cos_beta', 'sin_phiJL', 'cos_phiJL', 'phi12', 'phi1', 'phi2', 'LambdaTilde', 'DeltaLambdaTilde', 'lambda_plus', 'lambda_minus', 'q', 'mtot','xi','chiz_plus', 'chiz_minus', 'chieff_aligned','fmin','fref', "SOverM2_perp", "SOverM2_L", "DeltaOverM2_perp", "DeltaOverM2_L", "shu","ampO", "phaseO",'eccentricity','chi_pavg','mu1','mu2','eos_table_index']
+valid_params = ['m1', 'm2', 's1x', 's1y', 's1z', 's2x', 's2y', 's2z', 'chi1_perp', 'chi2_perp', 'chi1_perp_bar', 'chi2_perp_bar','chi1_perp_u', 'chi2_perp_u', 's1z_bar', 's2z_bar', 'lambda1', 'lambda2', 'theta','phi', 'phiref',  'psi', 'incl', 'tref', 'dist', 'mc', 'mc_ecc', 'eta', 'delta_mc', 'chi1', 'chi2', 'thetaJN', 'phiJL', 'theta1', 'theta2', 'cos_theta1', 'cos_theta2',  'theta1_Jfix', 'theta2_Jfix', 'psiJ', 'beta', 'cos_beta', 'sin_phiJL', 'cos_phiJL', 'phi12', 'phi1', 'phi2', 'LambdaTilde', 'DeltaLambdaTilde', 'lambda_plus', 'lambda_minus', 'q', 'mtot','xi','chiz_plus', 'chiz_minus', 'chieff_aligned','fmin','fref', "SOverM2_perp", "SOverM2_L", "DeltaOverM2_perp", "DeltaOverM2_L", "shu","ampO", "phaseO",'eccentricity', 'meanPerAno', 'chi_pavg','mu1','mu2','eos_table_index']
 
 tex_dictionary  = {
  "mtot": '$M$',
@@ -636,6 +636,10 @@ class ChooseWaveformParams:
         if  p == 'cos_beta':
             self.assign_param('beta',np.arccos(val))
             return self
+        if p == 'eccentricity':
+            self.eccentricity = val
+        if p == 'meanPerAno':
+            self.meanPerAno = val
         if p == 'lambda_plus':
             # Designed to give the benefits of sampling in chi_eff, without introducing a transformation/prior that depends on mass
             # Fixes chiz_minus by construction
@@ -1015,6 +1019,10 @@ class ChooseWaveformParams:
             return self.phi
         if p == 'cos_beta':
             return np.cos(self.extract_param('beta'))
+        if p == 'eccentricity':
+            return self.eccentricity
+        if p == 'meanPerAno':
+            return self.meanPerAno
         if p == 'lambda_plus':
             # Designed to give the benefits of sampling in chi_eff, without introducing a transformation/prior that depends on mass
             return (self.lambda1+self.lambda2)/2.
@@ -1569,6 +1577,7 @@ class ChooseWaveformParams:
         print( "reference orbital phase =", self.phiref)
         print( "polarization angle =", self.psi)
         print( "eccentricity = ", self.eccentricity)
+        print( "meanPerAno = ", self.meanPerAno)
         print( "time of coalescence =", float(self.tref),  " [GPS sec: ",  int(self.tref), ",  GPS ns ", (self.tref - int(self.tref))*1e9, "]")
         print( "detector is:", self.detector)
         if self.radec==False:
@@ -1660,6 +1669,7 @@ class ChooseWaveformParams:
         print( "reference orbital phase =", self.phiref)
         print( "polarization angle =", self.psi)
         print( "eccentricity = ", self.eccentricity)
+        print( "meanPerAno = ", self.meanPerAno)
         print( "reference time = ", float(self.tref), "(s)")
         print( "detector is: LISA")
         print( "ecliptic latitude (beta):", self.theta, "(radians)")
@@ -1828,7 +1838,7 @@ class ChooseWaveformParams:
         if hasattr(row, 'taper'):
             self.taper = lalsim.GetTaperFromString(str(row.taper))
         # FAKED COLUMNS (nonstandard)
-        self.lambda1 = row.alpha5
+        self.meanPerAno = row.alpha5
         self.lambda2 = row.alpha6
         self.eccentricity=row.alpha4
         self.snr = row.alpha3   # lnL info
@@ -1890,7 +1900,7 @@ class ChooseWaveformParams:
         row.taper = "TAPER_NONE"
         row.f_lower =self.fmin
         # NONSTANDARD
-        row.alpha5 = self.lambda1
+        row.alpha5 = self.meanPerAno
         row.alpha6 = self.lambda2
         row.alpha4 = self.eccentricity
         if self.eos_table_index:
@@ -4586,42 +4596,63 @@ def frame_data_to_hoft_old(fname, channel, start=None, stop=None, window_shape=0
 
 
 # LISA 
-def hlmoft_from_NRhdf5(path_to_hdf5, P, lmax= None, only_mode=None, taper_percent = 15, beta = 8, verbose = True):
-    """Takes in an NR h5 file and uses romspline interpolation to generate hlm. Outputs a hlm dict. The binary class will only populate distance and deltaT, intrinsic params are set by the simulation/file and other extrinsic params either go into detector response or Ylm.
-    Note: Would need to see how precessing waveforms work with this, considering I would need to change frames depending on fref."""
+def create_hlmoft_from_NRhdf5(path_to_hdf5, P, lmax = None, only_mode = None, taper_percent = 1, resize = True, verbose = True):
+    """This function creates a hlm dictionary using an NRhdf5 file that should be in the LVK format. The mode content is determined by only_mode and lmax option, and if both are set to None this function defaults to the lmax in the hdf5 file.
+        Args:
+            path_to_hdf5 (str): Path to NRhdf5 file,
+            P (ChooseWaveformsParamsArray): RIFT ChooseWaveformsParamsArray to populate distance, mtotal, deltaT and deltaF. mass ratio and spins are decided by the waveform,
+            lmax (int): lmax of modes to use. Note: This will skip m=0 modes,
+            only_mode (list): List of modes to use in generating hlm array. Note, this overrides lmax.,
+            taper_percent (float): Percentage of waveform length to taper, default is 1%,
+            resize (bool): Resize (zero pad) the modes to match the deltaF, such that 1/(n_bins * deltaT) = deltaF.
+            
+        Output:
+            hlm (dict): Outputs hlm dictionary, where each entry is a lal COMPLEX16TimeSeries object.
+        TO DO:
+            Allow the user to enter fref, currently fref is set to 0 to avoid NR format errors by lalsimulation."""
+    
 
     import romspline
-    assert 0<=taper_percent <=100, "taper_percent should be between 0 and 100."
-    #For unit conversion
-    MSUN_sec = lal.G_SI/lal.C_SI**3
-
+    assert 0 <= taper_percent <= 100, "taper_percent argument should be between 0 and 100."
+    
+    # For unit conversion
+    kg_in_sec = lal.G_SI/lal.C_SI**3
     mtotal = (P.m1 + P.m2)
-    mtot_in_sec= mtotal *  MSUN_sec
+    mtot_in_sec = mtotal *  kg_in_sec
     dist_in_sec = P.dist * 1/lal.C_SI
 
-    #just to know what time array we are dealing with
+    # Load in time array from the hdf5 file. Should be a better way to do it.
     data_1 = h5py.File(path_to_hdf5)
+
+    # To avoid NR format errors. This should be fixed later on.
     P.fref = 0
-    print(f"Setting P.fref to {P.fref}")
+    print(f"Setting P.fref to {P.fref} to prevent NR format errors. Tapering percent is {taper_percent}.")
+
+    # Setting mass and fmin based on the NR waveform.
     m1 = data_1.attrs["mass1"] * mtotal 
     m2 = data_1.attrs["mass2"] * mtotal
     fmin = data_1.attrs["f_lower_at_1MSUN"] * lal.MSUN_SI/mtotal
+    
+    # Get spins from hdf5 file. Uses fref but set to 0 for now. 
+    s1x, s1y, s1z, s2x, s2y, s2z = lalsim.SimInspiralNRWaveformGetSpinsFromHDF5File(P.fref, mtotal/lal.MSUN_SI, path_to_hdf5)
+    print(f"Generating waveform with m1 = {m1/lal.MSUN_SI:0.4f} MSUN, m2 = {m2/lal.MSUN_SI:0.4f} MSUN \n s1 = {s1x, s1y, s1z}, s2 = {s2x, s2y, s2z}\n deltaT = {P.deltaT} s, 1/deltaF = {1/P.deltaF} s, fmin = {fmin} Hz")
     if verbose:
         print(f"Smallest possible fmin for this waveform {fmin} Hz. fmin at 1 solar mass is {data_1.attrs['f_lower_at_1MSUN']}")
-    s1x, s1y, s1z, s2x, s2y, s2z = lalsim.SimInspiralNRWaveformGetSpinsFromHDF5File(P.fref, mtotal/lal.MSUN_SI, path_to_hdf5)
-    print(f"Generating waveform with m1 = {m1/lal.MSUN_SI:0.4f} MSUN, m2 = {m2/lal.MSUN_SI:0.4f} MSUN \n s1 = {s1x, s1y, s1z}, s2 = {s2x, s2y, s2z}\n fmin = {fmin} Hz")
 
-    #Which modes to get
+    # Modes to use. First preference is to only_mode, so if both only_mode and lmax provided, this logic only uses only_mode.
     modes = []
+    # lmax is provided and only_mode is not
     if only_mode is None:
         for l in range(2,lmax+1):
             for m in range(-l,0):
                 modes.append((l,m))
             for m in range(1,l+1):
                 modes.append((l,m))
+    # only_mode is provided, doesn't matter if lmax is provided or not.
     elif only_mode is not None:
         for j in only_mode:
             modes.append(j)
+    # if nothing is provided, provide all possible modes.
     else:
         lmax = data_1.attrs["Lmax"]
         for l in range(2,lmax+1):
@@ -4631,55 +4662,59 @@ def hlmoft_from_NRhdf5(path_to_hdf5, P, lmax= None, only_mode=None, taper_percen
                 modes.append((l,m))
     print(f"modes used = {modes}")
 
-    #interpolating using romspline
+    # Interpolating using romspline for all modes
     hlm = {}
     TDlen = int(1/P.deltaT/P.deltaF)
     for i in range(len(modes)):
-        amp22_time_0=np.array(data_1[f"phase_l{modes[i][0]}_m{modes[i][1]}"]["X"])
+    	# Load original time array
+        amp_time_0 = np.array(data_1[f"phase_l{modes[i][0]}_m{modes[i][1]}"]["X"])
 
+   	    # Create romspline function to interpolate phase and amplitude.
         amp = romspline.readSpline(path_to_hdf5, f"amp_l{modes[i][0]}_m{modes[i][1]}")
         phase = romspline.readSpline(path_to_hdf5, f"phase_l{modes[i][0]}_m{modes[i][1]}")
-        
-        amp22_time_0 = np.arange(np.min(amp22_time_0), np.max(amp22_time_0), P.deltaT/mtot_in_sec)
-        generated_amp = amp(amp22_time_0)
-        generated_phase = phase(amp22_time_0)
+    	
+        # Create the tvals array over which we will interpolate amplitude and phase. The deltaT is provided by user.
+        amp_time_0 = np.arange(np.min(amp_time_0), np.max(amp_time_0), P.deltaT/mtot_in_sec)
+
+        # Interpolate
+        generated_amp = amp(amp_time_0)
+        generated_phase = phase(amp_time_0)
         generated_phase = unwind_phase(generated_phase)
 
-        #tapering
-        tvals = np.arange(0, P.deltaT * len(generated_amp), P.deltaT)
-        if 100 >= taper_percent > 0: #percent defined with respect to peak time, 100 percent mean taper all the way to peak
-            peak_index = generated_amp.argmax()
-            time_peak = tvals[peak_index]
-            taper_time = time_peak * taper_percent/100
-            index_taper = np.abs(tvals-taper_time).argmin()
-
-            time_start = tvals[np.argwhere(generated_amp > 0)[0][0]]
-            width = tvals[index_taper] - time_start
-            winlen = 2 * int(width / P.deltaT)
-            window = np.array(signal.get_window(('kaiser', beta), winlen))
-            xmin = int((time_start - tvals[0]) / P.deltaT)
-            xmax = xmin + winlen//2
-            if verbose and i == 0:
-                print(f"total time = {tvals[-1]}s, taper till {tvals[index_taper]} which is {tvals[index_taper]/time_peak * 100} percent.")
-                print(time_start, tvals[index_taper], xmin, xmax)
-            generated_amp[xmin:xmax] *= window[:winlen//2]
-            
-            
-
+   	    # Construct waveform. Note the convention. Also, multiply by mtot and distance factor.
         wf_data = mtot_in_sec/dist_in_sec * generated_amp * np.exp(1j*generated_phase)
 
+    	# hp - 1j*hc = hlm
         max_Re, max_Im = np.max(np.real(wf_data)), -np.max(np.imag(wf_data))
-        print(f"Reading mode {modes[i]}, max for this mode: {max_Re, max_Im}")
-        wf = lal.CreateCOMPLEX16TimeSeries("hlm", 0, 0, P.deltaT,lal.DimensionlessUnit, len(wf_data))
+
+    	# Create a COMPLEX16TimeSeries to save this mode.
+        wf = lal.CreateCOMPLEX16TimeSeries("hlm", 0, 0, P.deltaT, lal.DimensionlessUnit, len(wf_data))
         wf.data.data = wf_data
-        assert wf.data.length * wf.deltaT <= TDlen
-        hlm[modes[i][0],modes[i][1]]  = lal.ResizeCOMPLEX16TimeSeries(wf, 0, TDlen)
+        print(f"Reading mode {modes[i]}, max for this mode: {max_Re, max_Im}, duration: {wf.data.length * wf.deltaT}")
+
+        # Is resizing requested?
+        if resize:
+            # Assert if the actual length of the waveform is smaller than what is requested for resizing
+            assert wf.data.length * wf.deltaT <= TDlen * wf.deltaT, f"Length of the waveform = {wf.data.length*P.deltaT} s is longer than what you requested = {TDlen*P.deltaT} s. Decrease your deltaF to prevent this error."
+            hlm[modes[i][0],modes[i][1]]  = lal.ResizeCOMPLEX16TimeSeries(wf, 0, TDlen)
+        else:
+            hlm[modes[i][0],modes[i][1]] = wf
+            TDlen = wf.data.length
+    # Always taper the modes
+    taper = True 
+    if taper:
+        ntaper = int(taper_percent/100*TDlen) 
+        #ntaper = np.max([ntaper, int(1./(P.fmin*P.deltaT))]) # sometimes you want less tapering due to short NR waveforms, rely on users to provide sensible values 
+        vectaper= 0.5 - 0.5*np.cos(np.pi*np.arange(ntaper)/(1.*ntaper))
+        # Taper at the start of the segment
+        for mode in hlm:
+            hlm[mode].data.data[:ntaper]*=vectaper
     return hlm
     
-def hlmoff_for_LISA(P, Lmax=4, modes=None, fd_standoff_factor=0.964, fd_alignment_postevent_time=None, path_to_NR_hdf5=None,**kwargs):
+def hlmoff_for_LISA(P, Lmax=4, modes=None, fd_standoff_factor=0.964, fd_alignment_postevent_time=None, path_to_NR_hdf5=None, NR_taper_percent = 1, **kwargs):
     """
     Funtion that outputs the modes in frequency domain. Due to conditioning in hlmoft, it wasn't suitable for obtainging tf from phase. Takes in ChooseWaveformParams object to populate \
-    the waveform call from lalsimulation. Takes in Lmax and modes, defaults to Lmax of 2. Can only take in IMRPhenomHM, IMRPhenomXPHM, IMRPhenomXHM, 
+    the waveform call from lalsimulation. Takes in Lmax and modes, defaults to Lmax of 2.  
     Args:
         P: A ChooseWaveformParams object,
         Lmax: max l content in the hlm dictionary,
@@ -4706,10 +4741,16 @@ def hlmoff_for_LISA(P, Lmax=4, modes=None, fd_standoff_factor=0.964, fd_alignmen
             print(" Warning: fd alignment postevent time requested incompatible with short duration ", file=sys.stderr)
     
     if path_to_NR_hdf5 is not None:
-        hlms_struct =  hlmoft_from_NRhdf5(path_to_NR_hdf5, P, Lmax, only_mode=modes, taper_percent = 10, beta = 8, verbose = True)
+        hlms_struct =  create_hlmoft_from_NRhdf5(path_to_NR_hdf5, P, Lmax, only_mode=modes, taper_percent = NR_taper_percent, verbose = True) # tapering performed there
         hlmsdict = {}
         for mode in hlms_struct:
             hlmsdict[mode] = DataFourier(hlms_struct[mode])
+        return hlmsdict
+
+    if P.approx == "SEOBNRv5EHM":
+        import RIFT.physics.GWSignal as rgws
+        hlms_struct = rgws.hlmoff(P,Lmax,approx_string=P.approx,**kwargs) # added tapering there
+        hlmsdict = SphHarmFrequencySeries_to_dict(hlms_struct, Lmax, modes)
         return hlmsdict
 
     if P.approx == lalIMRPhenomHM or P.approx == lalIMRPhenomXPHM or P.approx == lalIMRPhenomXHM:
@@ -4718,13 +4759,13 @@ def hlmoff_for_LISA(P, Lmax=4, modes=None, fd_standoff_factor=0.964, fd_alignmen
         # convert into dictionary
         hlmsdict = SphHarmFrequencySeries_to_dict(hlms_struct, Lmax, modes)
         # Resize it such that deltaF = 1/TDlen
-	# Commenting this out because this chages fmax without changing P.fmax; tf_dict doesn't use fmax any more but this function add zeros to the end, but evaluate fvals expects the data to be centered around zero.
+	    # Commenting this out because this chages fmax without changing P.fmax; tf_dict doesn't use fmax any more but this function add zeros to the end, but evaluate fvals expects the data to be centered around zero.
         for mode in hlmsdict:
             hlmsdict[mode] = lal.ResizeCOMPLEX16FrequencySeries(hlmsdict[mode],0, TDlen)
         return hlmsdict
 
     if P.approx == lalNRHybSur3dq8 or P.approx == lalIMRPhenomD: # will resize such that deltaF = 1/TDlen
-        hlms_struct = hlmoff(P, Lmax=Lmax)
+        hlms_struct = hlmoff(P, Lmax=Lmax)  # tapering performed in hlmoft
         hlmsdict = SphHarmFrequencySeries_to_dict(hlms_struct, Lmax, modes)
         # Resize it such that deltaF = 1/TDlen
         for mode in hlmsdict:
@@ -5348,6 +5389,34 @@ def convert_waveform_coordinates(x_in,coord_names=['mc', 'eta'],low_level_coord_
         indx_eta = low_level_coord_names.index('eta')
         x_out[:,indx_p_out] = np.sqrt(1-4*x_in[:,indx_eta])
         coord_names_reduced.remove('delta_mc')
+
+    # FOR LISA
+    if ('mtot' in coord_names_reduced) and ('eta' in coord_names_reduced) and ('xi' in coord_names_reduced) and ('chiMinus' in coord_names_reduced) and ('mc' in low_level_coord_names) and ('delta_mc' in low_level_coord_names) and ('s1z' in low_level_coord_names) and ('s2z' in low_level_coord_names):
+        index_pout_mtot =  coord_names.index('mtot')
+        index_pout_eta =  coord_names.index('eta')
+        index_pout_xi =  coord_names.index('xi')
+        index_pout_chiminus =  coord_names.index('chiMinus')
+
+        indx_mc = low_level_coord_names.index('mc')
+        indx_delta = low_level_coord_names.index('delta_mc')
+        indx_s1z = low_level_coord_names.index('s1z')
+        indx_s2z = low_level_coord_names.index('s2z')
+
+        eta_vals = 0.25*(1- x_in[:,indx_delta]**2)
+        m1_vals,m2_vals = m1m2(x_in[:,indx_mc], eta_vals)
+        mtot_vals = m1_vals + m2_vals
+        chiMinus_vals = (m1_vals*x_in[:,indx_s1z] - m2_vals*x_in[:,indx_s2z])/(m1_vals+m2_vals)
+        xi_vals = (m1_vals*x_in[:,indx_s1z] + m2_vals*x_in[:,indx_s2z])/(m1_vals+m2_vals)
+
+        x_out[:,index_pout_mtot] = mtot_vals
+        coord_names_reduced.remove('mtot')
+        x_out[:,index_pout_eta] = eta_vals
+        coord_names_reduced.remove('eta')
+        x_out[:,index_pout_xi] = xi_vals
+        coord_names_reduced.remove('xi')
+        x_out[:,index_pout_chiminus] = chiMinus_vals
+        coord_names_reduced.remove('chiMinus')
+
 
     # Check for common coordinates we need to transform: xi, chiMinus as the most common, from cartesian
     if ('xi' in coord_names_reduced) and ('s1z' in low_level_coord_names) and ('s2z' in low_level_coord_names) and ('mc' in low_level_coord_names):

@@ -290,7 +290,7 @@ special_param_ranges = {
   'chi_pavg':[0,2],
   'chi_p':[0,1],
   'lambdat':[0,4000],
-  'eccentricity':[0,1],
+#  'eccentricity':[0,1],
   'phiorb':[0,2*np.pi],
   'psi':[0,2*np.pi]
 }
@@ -468,12 +468,15 @@ if opts.flag_tides_in_composite:
     else:
         print(" Reading composite file, assuming tide-based format ")
         field_names=("indx","m1", "m2",  "a1x", "a1y", "a1z", "a2x", "a2y", "a2z","lambda1", "lambda2", "lnL", "sigmaOverL", "ntot", "neff")
-if opts.eccentricity:
+if not(opts.LISA) and opts.eccentricity:
     print(" Reading composite file, assuming eccentricity-based format ")
     field_names=("indx","m1", "m2",  "a1x", "a1y", "a1z", "a2x", "a2y", "a2z","eccentricity", "lnL", "sigmaOverL", "ntot", "neff")
-if opts.LISA:
+if opts.LISA and not(opts.eccentricity):
     print(" Reading composite file, assuming LISA format ")
     field_names=("indx","m1", "m2",  "a1x", "a1y", "a1z", "a2x", "a2y", "a2z","ra","dec", "lnL", "sigmaOverL", "ntot", "neff")
+if opts.LISA and opts.eccentricity:
+    print(" Reading composite file, assuming LISA format with eccentricity")
+    field_names=("indx","m1", "m2",  "a1x", "a1y", "a1z", "a2x", "a2y", "a2z","ra","dec", "eccentricity", "meanPerAno", "lnL", "sigmaOverL", "ntot", "neff")
 field_formats = [np.float32 for x in field_names]
 composite_dtype = [ (x,float) for x in field_names] #np.dtype(names=field_names ,formats=field_formats)
 # Load posterior files
@@ -855,7 +858,7 @@ if opts.use_title:
     plt.title(opts.use_title)
 
 param_postfix = "_".join(opts.parameter)
-res_base = len(opts.parameter)*dpi_base
+res_base = 0.25*len(opts.parameter)*dpi_base
 if not(opts.matplotlib_block_defaults):
     matplotlib.rcParams.update({'font.size': 11+int(len(opts.parameter)), 'legend.fontsize': legend_font_base+int(1.3*len(opts.parameter))})   # increase font size if I have more panels, to keep similar aspect
 plt.savefig("corner_"+param_postfix+fig_extension,dpi=res_base)        # use more resolution, to make sure each image remains of consistent quality

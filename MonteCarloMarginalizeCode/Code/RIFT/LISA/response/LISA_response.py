@@ -63,32 +63,6 @@ def create_lal_COMPLEX16TimeSeries(deltaT, time_series,  epoch = 950000000, f0 =
     return ht_lal
 
 
-def convert_double_sided_to_single_sided(frequency_values, frequency_series, data_defined="negative"):
-    assert len(frequency_values) == len(frequency_series), "frequency_values and frequency_series don't have the same length."
-    if data_defined == "negative":
-        print("Negative")
-        index = np.argwhere(frequency_values<=0).flatten()
-        hf_onesided = create_lal_frequency_series(frequency_values[index], np.conj(frequency_series[index][::-1])) # do I need to conjugate?
-        assert len(frequency_series)//2 + 1 == hf_onesided.data.length
-        return hf_onesided
-    elif data_defined == "positive":
-        print("Positve")
-        index = np.argwhere(frequency_values>=0).flatten()
-        hf_onesided = create_lal_frequency_series(frequency_values[index], frequency_series[index])
-        assert len(frequency_series)//2 + 1 == hf_onesided.data.length
-        return hf_onesided
-    else:
-        print("Need to define how the frequency series is packed (either defined on negative or positive frequencies).")
-        sys.exit(1)
-
-def frequency_series_double_sided(frequency_values, frequency_series, data_defined = "negative"):
-    hf_small = convert_double_sided_to_single_sided(frequency_values, frequency_series, data_defined)
-    tmp = np.zeros(len(frequency_series), dtype=complex)
-    tmp[:len(hf_small.data.data)] = np.conj(hf_small.data.data[::-1])
-    tmp[len(hf_small.data.data)-1:] =  (hf_small.data.data[:-1])
-    hf = create_lal_frequency_series(frequency_values, tmp)
-    return hf
-
 def get_fvals(frequency_series):
     """A function to evaulate frequency values of a COMPLEX16FrequencySeries. Goes from [-fNyq, fNyq - deltaF].
         Args:
@@ -119,6 +93,40 @@ def get_closest_index(array, value):
         Output:
             index (float)"""
     return np.argmin(np.abs(array - value))
+
+
+def create_real_strain_from_double_sided_frequency_series(frequency_series, return_double_sided_frequency_series = False):
+    fvals = get_fvals(frequency_series)
+    tmp = np.zeros(frequency_series.data.length, dtype=complex)
+    tmp = np.conj(frequency_series.data.data[::-1]) + frequency_series.data.data
+    hf = create_lal_frequency_series(fvals, tmp, frequency_series.deltaF)
+    if return_double_sided_frequency_series:
+        return lsu.DataInverseFourier(hf), hf
+    return lsu.DataInverseFourier(hf)
+
+def convert_AET_from_FD_to_TD(data_dict_in_FD):
+    """Converts the gravitational wave data for channels A, E, and T from the frequency domain (FD) to the time domain (TD).
+
+    Args:
+        data_dict_in_FD (dict): A dictionary containing frequency-domain datafor channels 'A', 'E', and 'T' (as COMPLEX16FrequencySeries).
+
+    Output:
+        dict: A dictionary containing time-domain data for channels 'A', 'E', and 'T' (as COMPLEX16TimeSeries)."""
+    A_TD = lsu.DataInverseFourier(data_dict_in_FD['A'])
+    A_TD.data.data.real *= 2
+    A_TD.data.data.imag = np.zeros(A_TD.data.length)
+
+    E_TD = lsu.DataInverseFourier(data_dict_in_FD['E'])
+    E_TD.data.data.real *= 2
+    E_TD.data.data.imag = np.zeros(E_TD.data.length)
+    
+    T_TD = lsu.DataInverseFourier(data_dict_in_FD['T'])
+    T_TD.data.data.real *= 2
+    T_TD.data.data.imag = np.zeros(T_TD.data.length)
+
+    data_dict_in_TD = {'A':A_TD, 'E':E_TD, 'T':T_TD}
+
+    return data_dict_in_TD
 
 def transformed_Hplus_Hcross(beta, lamda, psi, theta, phiref, l, m):
     """This function transforms the plus and cross polarization from wave frame to SSB frame.
@@ -366,7 +374,7 @@ def get_tf_from_phase_dict(hlm, fmax, fref=None, debug=True, shift=True):#tested
         freq_dict[mode] = freq[::-1]
         amp_dict[mode] = amp
         phase_dict[mode] = phase
-    
+    # NOTE: This needs to be handled with care as we are dealing with phase of the waveform and we can introduce unnecessary systematics if not done correctly.
     if shift:
         modes = list(hlm.keys())
         print(f"Shifting of time and phase with fref = {fref}.")
@@ -381,26 +389,36 @@ def get_tf_from_phase_dict(hlm, fmax, fref=None, debug=True, shift=True):#tested
         tf_22_current = tf_dict[2,2][index_at_fref]
         phase_22_current = phase_dict[2,2][index_at_fref]
         
+        # Time shift should be a multiple of deltaT
         time_shift = tf_22_current
+        deltaT_here = 1/2/np.abs(freq[0])  # fNyq = 1/2/deltaT
+        #time_shift = round(tf_22_current/deltaT_here) *  deltaT_here # integer multiple (closest) of deltaT
         reference_phase = 0.0
         
         # for loop needs to start with (2,2) mode
         modes.remove((2,2))
         modes.insert(0, (2,2)) 
         if debug:
-            print(f"tf[2,2] at fref ({freq_dict[2,2][index_at_fref]} Hz) before shift is {tf_22_current}s (phase[2,2] = {phase_22_current}).")
+            print(f"tf[2,2] at fref ({freq_dict[2,2][index_at_fref]} Hz) before shift is {tf_22_current}s (phase[2,2] = {phase_22_current}), time shift applied = {time_shift} s, difference = {time_shift - tf_22_current} s,  (deltaT used here = {deltaT_here} s) ")
             
         # subtract that from all modes. tf for (2,2) needs to be zero at fref, I will add t_ref to all modes later (create_lisa_injections for injections and precompute for recovery), making tf=t_ref at fref.
         for mode in modes:
             if debug:
                 print(f"\tShifting {mode}")
             tf_dict[mode] = tf_dict[mode]  - time_shift  # confirmed that I don't need to set all modes tf as 0. Conceptually, for the same time the other modes will be at a different frequency.
+            if debug:
+                print(f"\t\tFor {mode}, phase = {phase_dict[mode][index_at_fref]} ({phase_dict[mode][index_at_fref]%(2*np.pi)}) before subtracting time shift such that tref[2,2] = 0 at fref.")
+            # CAREFUL
             phase_dict[mode] = phase_dict[mode] - 2*np.pi*time_shift*freq_dict[mode]
+            if debug:
+                print(f"\t\tFor {mode}, phase = {phase_dict[mode][index_at_fref]} ({phase_dict[mode][index_at_fref]%(2*np.pi)}) after subtracting time shift and before setting phase[2,2] = 0 such that tref[2,2] = 0 at fref.")
             if mode == (2,2):
-                phase_22_current = phase_dict[2,2][index_at_fref]
-                difference = reference_phase - phase_22_current
+               phase_22_current = phase_dict[2,2][index_at_fref]
+               difference = reference_phase - phase_22_current
+            # CAREFUL
             phase_dict[mode] = phase_dict[mode] + mode[1]/2 * difference
-            print(f"{mode}, phase = {phase_dict[mode][index_at_fref]}")
+            if debug:
+                print(f"\t\tFor {mode}, phase = {phase_dict[mode][index_at_fref]} ({phase_dict[mode][index_at_fref]%(2*np.pi)}) after setting phase[2,2] = 0 at fref.")
         if debug:
             print(f"tf[2,2] at fref ({fref} Hz) after shift is {tf_dict[2,2][index_at_fref]} (phase[2,2] = {phase_dict[2,2][index_at_fref]}).")
 
@@ -634,93 +652,5 @@ def Evaluate_Gslr_test_2(tf, f, beta, lamda):
 
     return np.array([transferL1_xx, transferL1_xy, transferL1_xz, transferL1_yy, transferL1_yz, transferL1_zz]), np.array([transferL2_xx, transferL2_xy, transferL2_xz, transferL2_yy, transferL2_yz, transferL2_zz]), np.array([transferL3_xx, transferL3_xy, transferL3_xz, transferL3_yy, transferL3_yz, transferL3_zz])
 
-###########################################################################################
-# FOR INJECTIONS
-###########################################################################################
-def create_lisa_injections(hlmf, fmax, fref, beta, lamda, psi, inclination, phi_ref, tref, return_response = False):
-    print(f"create_lisa_injections function has been called with following arguments:\n{locals()}")
-    tf_dict, f_dict, amp_dict, phase_dict = get_tf_from_phase_dict(hlmf, fmax, fref)
-    A = 0.0
-    E = 0.0
-    T = 0.0
-    modes = list(hlmf.keys())
-    response = {}
-    mode_TDI = {}
-    for mode in modes:
-        H_0 = transformed_Hplus_Hcross(beta, lamda, psi, inclination, -phi_ref, mode[0], mode[1]) 
-        L1, L2, L3 = Evaluate_Gslr(tf_dict[mode] + tref, f_dict[mode], H_0, beta, lamda)
-        time_shifted_phase = phase_dict[mode] + 2*np.pi*tref*f_dict[mode]
-        tmp_data = amp_dict[mode] * np.exp(1j*time_shifted_phase)  
-        # I belive BBHx conjugates because the formalism is define for A*exp(-1jphase), but I need to check with ROS and Mike Katz.
-        A += np.conj(tmp_data * L1)
-        E += np.conj(tmp_data * L2)
-        T += np.conj(tmp_data * L3)
-        response[mode], mode_TDI[mode] = {}, {}
-        response[mode]["L1"], response[mode]["L2"], response[mode]["L3"] = np.conj(L1), np.conj(L2), np.conj(L3)
-        mode_TDI[mode]["L1"], mode_TDI[mode]["L2"], mode_TDI[mode]["L3"] = np.conj(tmp_data*L1), np.conj(tmp_data*L2), np.conj(tmp_data*L3)
-    A_lal, E_lal, T_lal = create_lal_frequency_series(f_dict[modes[0]], A, hlmf[modes[0]].deltaF), create_lal_frequency_series(f_dict[modes[0]], E, hlmf[modes[0]].deltaF), create_lal_frequency_series(f_dict[modes[0]], T, hlmf[modes[0]].deltaF)
-    data_dict = {}
-    data_dict["A"], data_dict["E"], data_dict["T"] = A_lal, E_lal, T_lal
-    if return_response:
-        return data_dict, response, mode_TDI
-    else:
-        return data_dict
 
-def generate_lisa_TDI(P_inj, lmax=4, modes=None, tref=0.0, fref=None, return_response=False, path_to_NR_hdf5=None):
-    print(f"generate_lisa_TDI function has been called with following arguments:\n{locals()}")
-    P = lsu.ChooseWaveformParams()
-
-    P.m1 = P_inj.m1
-    P.m2 = P_inj.m2
-    P.s1z = P_inj.s1z
-    P.s2z = P_inj.s2z
-    P.dist = P_inj.dist
-    P.fmin = P_inj.fmin
-    P.fmax = 0.5/P_inj.deltaT
-    P.deltaF = P_inj.deltaF
-    P.deltaT = P_inj.deltaT
-
-
-    P.phiref = 0.0  
-    P.inclination = 0.0 
-    P.psi = 0.0 
-    P.fref = P_inj.fref 
-    P.tref = 0.0
-
-    P.approx = P_inj.approx
-    hlmf = lsu.hlmoff_for_LISA(P, Lmax=lmax, modes=modes, path_to_NR_hdf5=path_to_NR_hdf5)
-    modes = list(hlmf.keys())
-
-    # create TDI
-    output = create_lisa_injections(hlmf, P.fmax, fref, P_inj.theta, P_inj.phi, P_inj.psi, P_inj.incl, P_inj.phiref, tref, return_response)
-
-    if return_response:
-        return output[0], output[1], output[2]
-    else:
-        return output
-
-
-def create_h5_files_from_data_dict(data_dict, save_path):
-    """This function takes in data dictionary and creates h5 files from them. Assumes the data is stores as COMPLEX16FrequencySeries.
-        Args:
-            data_dict (dictonary): contains data for A, E, T channels,
-            save_path (string): path to where you want to save the h5 files.
-        Output:
-            None"""
-    A_h5_file = h5py.File(f'{save_path}/A-fake_strain-1000000-10000.h5', 'w')
-    A_h5_file.create_dataset('data', data=data_dict["A"].data.data)
-    A_h5_file.attrs["deltaF"], A_h5_file.attrs["epoch"], A_h5_file.attrs["length"], A_h5_file.attrs["f0"] = data_dict["A"].deltaF, float(data_dict["A"].epoch), data_dict["A"].data.length, data_dict["A"].f0 
-    A_h5_file.close()
-
-    E_h5_file = h5py.File(f'{save_path}/E-fake_strain-1000000-10000.h5', 'w')
-    E_h5_file.create_dataset('data', data=data_dict["E"].data.data)
-    E_h5_file.attrs["deltaF"], E_h5_file.attrs["epoch"], E_h5_file.attrs["length"], E_h5_file.attrs["f0"] =  data_dict["E"].deltaF, float(data_dict["E"].epoch), data_dict["E"].data.length, data_dict["E"].f0
-    E_h5_file.close()
-
-    T_h5_file = h5py.File(f'{save_path}/T-fake_strain-1000000-10000.h5', 'w')
-    T_h5_file.create_dataset('data', data=data_dict["T"].data.data)
-    T_h5_file.attrs["deltaF"], T_h5_file.attrs["epoch"], T_h5_file.attrs["length"], T_h5_file.attrs["f0"] = data_dict["T"].deltaF, float(data_dict["T"].epoch), data_dict["T"].data.length, data_dict["T"].f0
-    T_h5_file.close()
-
-    return None
 

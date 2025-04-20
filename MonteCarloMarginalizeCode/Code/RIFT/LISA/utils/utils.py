@@ -4,10 +4,6 @@ import numpy as np
 import h5py
 import sys
 from scipy.interpolate import interp1d
-
-RIFT = "RIFT-LISA-3G-O4c"
-sys.path.append(f"/Users/aasim/Desktop/Research/Mcodes/{RIFT}/MonteCarloMarginalizeCode/Code")
-
 import RIFT.lalsimutils as lsu
 from RIFT.LISA.response.LISA_response import *
 
@@ -295,7 +291,7 @@ def get_ldc_mbhb_params(h5_path, dataset = "radler", sangria_signal=0):
         down_psi = np.array(np.sin(theL)*np.sin(params["lambda"] - phiL))
         params["psi"] = np.array(np.arctan2(up_psi, down_psi))
         params["z"] = np.array(pGW.get("Redshift"))
-    if dataset == 'sangria':
+    elif dataset == 'sangria':
         pGW = data['sky']['mbhb']['cat'][sangria_signal]
         # Extract params
         params = {}
@@ -323,9 +319,10 @@ def get_ldc_mbhb_params(h5_path, dataset = "radler", sangria_signal=0):
         down_psi = np.array(np.sin(theL)*np.sin(params["lambda"] - phiL))
         params["psi"] = np.array(np.arctan2(up_psi, down_psi))
         params["z"] = np.array(pGW["Redshift"])
+
+    else:
+        print(f"Do not recognize dataset {dataset}. Only 'sangria' and 'radler' are recognized.")
     
-
-
     return params
 
 def modpi(phase):
@@ -554,9 +551,9 @@ def SSB_to_LISA(tSSB, lambdaSSB, betaSSB, psiSSB, t0=0.0):
     return np.vstack([tL, lambdaL, betaL, psiL]).T
 
 
-def get_secondary_mode_for_skylocation(coalesence_time, lamda, beta, psi = 0.0, t0=0.0):
+def get_reflected_mode_for_skylocation(coalesence_time, lamda, beta, psi = 0.0, t0=0.0):
     """
-    Calculate the secondary mode location for a given sky location in the SSB frame.
+    Calculate the reflected mode location for a given sky location in the SSB frame.
 
     Parameters:
     coalescence_time (float): The time of coalescence.
@@ -566,7 +563,7 @@ def get_secondary_mode_for_skylocation(coalesence_time, lamda, beta, psi = 0.0, 
     t0 (float, optional): The initial time (default is 0.0).
 
     Returns:
-    numpy.ndarray: The secondary mode parameters in the SSB frame, needed for grid generation.
+    numpy.ndarray: The reflected mode parameters in the SSB frame, needed for grid generation.
     """
     lisa_params = SSB_to_LISA(coalesence_time, lamda, beta, psi, t0)
     lisa_params_new = lisa_params
@@ -574,3 +571,32 @@ def get_secondary_mode_for_skylocation(coalesence_time, lamda, beta, psi = 0.0, 
     lisa_params_new[0, 2] = -1.0*lisa_params_new[0, 2]
     SSB_params_new = LISA_to_SSB(lisa_params_new[0, 0], lisa_params_new[0, 1], lisa_params_new[0, 2], lisa_params_new[0, 3])
     return SSB_params_new
+
+def check_modes_input(modes , only_positive_modes = True):
+    """
+    This function checks the modes list passed to util_RIFT_pseudo_pipe.py 
+    when creating the pipeline for analysis. It removes duplicates and if analysing
+    aligned system, the likelihood code uses the equatorial symmetry to include the effect
+    of -m modes, and hence this function will remove -m modes in that case.
+    Args:
+        modes (list): list of modes,
+        only_positive_modes (bool): convert -m modes to +m mode.
+    returns:
+        modes (list)"""
+    # Convert -m modes to +m modes if only_positive_modes is True
+    if only_positive_modes:
+        for i, mode in enumerate(modes):
+            l, m = mode[0], mode[1]
+            if m < 0:
+                modes[i] = (l, -m)
+    # Check for duplicates
+    unique_modes_list = []
+    for i, mode in enumerate(modes):
+        if i == 0:
+            unique_modes_list.append(mode)
+        elif mode not in unique_modes_list:
+            unique_modes_list.append(mode)
+    modes = unique_modes_list
+    return modes
+
+   

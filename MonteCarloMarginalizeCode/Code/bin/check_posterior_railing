@@ -1,0 +1,227 @@
+#!/usr/bin/env/ python
+import numpy as np
+import re
+from argparse import ArgumentParser
+
+__author__ = "Marçal Font"
+
+parser = ArgumentParser()
+
+parser.add_argument("--cip-files", help="filname of the CIP *.sub file") # get this from create_event_parameter_pipeline, use all CIPs
+parser.add_argument("--posterior-file", type=str, help="filname of the posterior *.dat file") # get the iteration from pseduo-pipe which will enable  create_event_parameter_pipeline to pass the posterior
+parser.add_argument("--puff-factor", type=float, default=0.2, help="Puff factor for the updated bound") # use default
+parser.add_argument("--p", type=float, default=0.005, help="Probability in which we consider railing") # use default
+parser.add_argument("--railing-parameters", help="List of parameters that we want to check the railing of") # get from pseduo-pipe as a list
+#default=['mc','eta','s1z','s2z','ra','dec'] doesn't get removed when I add parameters
+
+
+#opts = parser.parse_args(["--cip-file", 'CIP_worker.sub', "--posterior-file", "posterior_samples.dat", "--p", "0.05", "--parameter", "mc", "--parameter", "eta"]) #Test 
+opts = parser.parse_args()
+
+#Define physical/hard bounds dictionary
+hard_bounds_dict = {
+    'mc': [0,np.inf],
+    'eta': [0.01,0.25],
+    's1z': [-0.99,0.99],
+    's2z': [-0.99,0.99],
+    'dec': [-np.pi/2,np.pi/2], #beta
+    'ra': [0,2*np.pi] #lambda
+
+}
+
+def check_bounds(samples, p=0.005, puff_factor=0.2, forced_bounds=[-np.inf,np.inf]):
+    """
+    Adjusts the range of a prior distribution based on the railing of the input posterior distribution
+
+    Args:
+        samples (array-like): The samples of the posterior distribution of which the railing has to be checked.
+        p (float, optional): Threshold probability for detecting railing conditions. Default is 0.005.
+        puff_factor (float, optional): Factor to expand the prior range when a railing condition is detected. Default is 0.2.
+        forced_bounds (list of float, optional): The minimum and maximum allowed bounds for the prior range, usually the physical bounds of the magnitude. Default is [-np.inf, np.inf].
+
+    Returns:
+        new_prior (list of float): The adjusted prior range. It will either expand or remain the same depending on the railing.
+    """
+
+    #Railing check
+    hist, bins = np.histogram(samples, bins=50, density = True)
+    hist = hist/np.sum(hist)
+    #Old range
+    print(f"Old prior range: {bins[0],bins[-1]}")
+    #Railing condition: prob > p
+    left_railing = hist[0] > p
+    right_railing = hist[-1] > p
+    railing = left_railing or right_railing
+    if (left_railing):
+        print("Left Railing")
+    if (right_railing):
+        print("Right Railing")
+    if (not railing):
+        print("Not Railing")
+
+    #Extend the prior range up to where the probability is less than p
+    new_prior=[bins[0],bins[-1]]
+    pmax = np.max(hist)
+    sigma = 1/(np.sqrt(2*np.pi)*pmax)
+    mu = bins[np.argmax(hist)]
+
+
+
+    if (left_railing):
+        x1=mu-np.sqrt(-2*sigma**2 * np.log(np.sqrt(2*np.pi)*sigma*p))
+        x1-=(np.abs(mu-x1)*puff_factor)
+        if (forced_bounds[0] <= x1):
+            new_prior[0] = x1
+        else:
+            new_prior[0]=forced_bounds[0]
+    if (right_railing):
+        x2=mu+np.sqrt(-2*sigma**2 * np.log(np.sqrt(2*np.pi)*sigma*p))
+        x2+= (np.abs(mu-x2)*puff_factor)
+        if (x2 <= forced_bounds[1]):
+            new_prior[1] = x2
+        else:
+            new_prior[1]=forced_bounds[1]
+    if (railing):
+        print(f"New prior range: {new_prior}")
+    if (not railing):
+        print("Prior remains the same")
+    return new_prior
+
+def get_index_for_parameter(parameter):
+    """
+    Retrieves the index corresponding to a given parameter name.
+
+    Args:
+        parameter (str): The name of the parameter.
+
+    Returns:
+        int or None: The index of the parameter if found, otherwise None.
+    """
+    parameter_indices = {
+        "mc": 8,
+        "mtot": -2,
+        "a1z": 4,
+        "s1z": 4,
+        "a2z": 7,
+        "s2z": 7,
+        "eta": 9,
+        "m1": 0,
+        "m2": 1,
+        "q": -1,
+        "dec": 13,
+        "ra": 12
+    }
+    
+    return parameter_indices.get(parameter, None)  # Return None if parameter is not found
+
+def load_cip(file):
+    """
+    Loads a CIP file (CIP_worker.sub format) and extracts parameter bounds.
+
+    Args:
+        file (str): Path to the CIP file to be loaded.
+
+    Returns:
+        parameter_ranges (dict): A dictionary where keys are parameter names and values are tuples representing their ranges.
+    """
+    #Load the file
+    f = open(file, 'r')
+    cipfile = f.read()
+    f.close()
+    #Read Ranges
+    rangs_matches = re.findall(r'--(\w+)-range\s+\'\[(.*?)\]\'', cipfile)
+    #Output the ranges as dict
+    parameter_ranges = {param: tuple(map(float, interval.split(','))) for param, interval in rangs_matches}
+    return parameter_ranges
+
+def change_cip(file, new_bounds):
+    """
+    Modifies parameter bounds in a CIP file (CIP_worker.sub format).
+
+    Args:
+        file (str): Path to the CIP file to be modified.
+        new_bounds (dict): A dictionary where keys are parameter names and values are tuples with the new ranges.
+
+    Returns:
+        None
+    """
+    #Load the file
+    f = open(file, 'r')
+    cipfile = f.read()
+    f.close()
+
+    #Replace the old ranges with the new ones
+    for param, new_interval in new_bounds.items():
+        new_interval_str = f"[{new_interval[0]},{new_interval[1]}]"
+        cipfile = re.sub(rf'--{param}-range\s+\'\[(.*?)\]\'', rf'--{param}-range \'{new_interval_str}\'', cipfile)
+
+    #Write the modified content in the original file
+    f = open(file, 'w')
+    f.write(cipfile)
+    f.close()
+
+def update_bounds(file, parameters, p=0.1, puff_factor=0.2, hard_bounds=hard_bounds_dict):
+    """
+    Updates parameter bounds based on data from a posterior_samples_*.dat file.
+
+    Args:
+        file (str): Path to the posterior samples file.
+        parameters (list of str): List of parameter names to update bounds for.
+
+    Returns:
+        new_bounds_dict (dict): A dictionary where keys are parameter names and values are the updated bounds.
+    """
+    parameter_dict = {param: get_index_for_parameter(param) for param in parameters}
+    data = np.loadtxt(file)
+    new_bounds_dict={}
+    for param in parameter_dict:
+        index_here=parameter_dict[param] #Index for test runs 
+        data_here=data[:,index_here]
+        new_bounds_dict[param]=check_bounds(data_here, p, puff_factor, hard_bounds[param]) #Other parameters of check_bounds would go here and would be needed in update_bounds()
+    return new_bounds_dict
+
+def convert_to_list(params_raw):
+    """
+    Converts a string containing comma-separated strings enclosed in square brackets into a Python list.
+
+    Args:
+        params_raw (str): A string in the format "[str1,str2,...,strN]" where values are separated by commas.
+
+    Returns:
+        list: A list of strings where each element is a value from the input string.
+    """
+    # remove the bracets
+    params_raw_new = params_raw.replace("[","")
+    params_raw_new = params_raw_new.replace("]","")
+    # convert to list
+    params_raw_new_list = params_raw_new.split(",")
+    return(params_raw_new_list)
+"""
+mean=40
+std=2
+size=50000
+prior_range=[38,44]
+samples0=np.random.normal(mean,std,size)
+samples=samples0[(samples0>=prior_range[0]) & (samples0<=prior_range[1])]
+new_bounds = check_bounds(samples, 0.01)
+
+parameter = {mc,eta,a1z}
+file = 'CIP_worker.sub'
+"""
+
+print(f"CIP files : {opts.cip_files}")
+# Load the CIP file and get the current parameter ranges
+for cip_file in opts.cip_files:
+    print(f"Reading CIP file {cip_file}")
+    old_bounds = load_cip(cip_file)
+    print(f"Old bounds: {old_bounds}")
+
+    # Convert the user defined parameter list to a python list
+    param_list = convert_to_list(opts.railing_parameters)
+    print(param_list)
+    # Check if the posterior is railing and update those bounds
+    new_bounds = update_bounds(opts.posterior_file, param_list)
+    print(f"New bounds: {new_bounds}")
+    # Updae the CIP file
+    print(f"UPDATED CIP file {cip_file}")
+    change_cip(cip_file, new_bounds)

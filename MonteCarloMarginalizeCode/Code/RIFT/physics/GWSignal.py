@@ -123,14 +123,25 @@ def hlmoft(P, Lmax=2,approx_string=None,**kwargs):
         if P.deltaF:
             TDlen = int(1./P.deltaF * 1./P.deltaT)
             if TDlen < h.data.length:   # Truncate the series to the desired length, removing data at the *start* (left)
+                print(f"WARNING (mode = {mode}): Due to the requested length ({1/P.deltaF}s) being shorter than the generated waveform ({h.data.length*h.deltaT}s) some of the inspiral is being truncated.")
                 h = lal.ResizeCOMPLEX16TimeSeries(h,h.data.length-TDlen,TDlen)
             elif TDlen > h.data.length:   # Zero pad, extend at end
                 h = lal.ResizeCOMPLEX16TimeSeries(h,0,TDlen)
         # Add to structure
         hlmT[mode] = h
+    # Always taper the modes
+    taper = True
+    modes = list(hlmT.keys())
+    TDlen = hlmT[modes[0]].data.length
+    if taper:
+        ntaper = int(0.01*TDlen)
+        ntaper = np.max([ntaper, int(1./(P.fmin*P.deltaT))]) 
+        vectaper= 0.5 - 0.5*np.cos(np.pi*np.arange(ntaper)/(1.*ntaper))
+        # Taper at the start of the segment
+        for mode in hlmT:
+            hlmT[mode].data.data[:ntaper]*=vectaper
 
     return hlmT
-
 
 
 #

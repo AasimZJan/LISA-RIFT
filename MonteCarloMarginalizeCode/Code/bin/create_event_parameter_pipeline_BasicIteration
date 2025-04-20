@@ -264,6 +264,12 @@ parser.add_argument("--workflow",default='single',help="[single|fit+posterior|fu
 parser.add_argument("--n-post-jobs",default=1,type=int,help="Number of posterior jobs. Used in posterior and fit+posterior workflows")
 parser.add_argument("--use-bw-psd",action='store_true',help="Use BW PSD, attempting to use fiducial arguments as in LI for placement (i.e., signal at seglen -2). Assumes LI style data convention.  Necessary BW will be parsed out of ile-args.txt (required)")
 parser.add_argument("--use-full-submit-paths",action='store_true',help="DAG created has full paths to submit files generated. Note this is implemented on a per-file/as-needed basis, mainly to facilitate using this dag as an external subdag")
+parser.add_argument("--search-reflected-sky-mode", default=False, help="Use the transformation relation between reflected and true sky mode.")
+parser.add_argument("--search-reflected-sky-mode-iteration", default=None, help="Iteration at which the code should search for reflected mode, if None will search and n-2th iteration")
+parser.add_argument("--lisa-reference-time", default=None, help="LISA reference time")
+parser.add_argument("--check-posterior-railing", default=False, help="Checks the railing of the posterior and if it finds it it broadens the prior ranges")
+parser.add_argument("--check-posterior-railing-iteration", default=None, help="Iteration at which the code should check for raling, if None it will check at second to last iteration")
+parser.add_argument("--railing-parameters", help="List of parameters that we want to check the railing of. check-posterior-railing parameter")
 opts=  parser.parse_args()
 
 
@@ -1050,6 +1056,45 @@ if opts.test_args:
         test_job.set_sub_file(fname)
     test_job.write_sub_file()
 
+if opts.search_reflected_sky_mode and int(opts.n_iterations) > 1:
+   reflected_mode_exe = which("convert_primary_sky_mode_to_secondary")
+   if opts.search_reflected_sky_mode_iteration:
+   	reflected_mode_iter = int(opts.search_reflected_sky_mode_iteration)
+   else:
+   	reflected_mode_iter = int(opts.n_iterations) - 2 
+   if reflected_mode_iter <= 0:
+   	reflected_mode_iter = int(opts.n_iterations) - 1
+   reflected_mode_args = f"--lisa-reference-time {opts.lisa_reference_time} --fname " 
+   reflected_mode_job, reflected_mode_job_name = dag_utils.write_convert_sub(tag='reflected_sky_mode',log_dir=None,arg_str=reflected_mode_args,file_input=opts.working_directory+f'/overlap-grid-{reflected_mode_iter}.xml.gz',file_output=opts.working_directory+f'/overlap-grid-{reflected_mode_iter}.xml.gz',out_dir=opts.working_directory,exe=reflected_mode_exe,universe=local_worker_universe,no_grid=no_worker_grid)
+   reflected_mode_job.add_condor_cmd("initialdir",opts.working_directory+"/iteration_$(macroiteration)_cip")
+   reflected_mode_job.set_log_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/reflected-sky-mode-$(cluster)-$(process).log")
+   reflected_mode_job.set_stderr_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/reflected-sky-mode--$(cluster)-$(process).err")
+   reflected_mode_job.set_stdout_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/reflected-sky-mode-$(cluster)-$(process).out")
+   reflected_mode_job.add_condor_cmd('request_disk',opts.general_request_disk)
+   if opts.use_full_submit_paths:
+   	fname = opts.working_directory+"/"+reflected_mode_job.get_sub_file()
+   reflected_mode_job.write_sub_file()
+
+if opts.check_posterior_railing and int(opts.n_iterations) > 1:
+   import glob
+   railing_exe = which("check_posterior_railing")
+   if opts.check_posterior_railing:
+   	railing_iter = int(opts.check_posterior_railing_iteration)
+   else:
+   	railing_iter = int(opts.n_iterations) - 3
+   if railing_iter <= 0:
+   	railing_iter = int(opts.n_iterations) - 1
+   CIP_files = glob.glob(f'{opts.working_directory}/CIP*.sub')
+   railing_args = f"--cip-files {CIP_files} --posterior-file {opts.working_directory}/posterior_samples-{railing_iter}.dat --railing-parameters {opts.railing_parameters}" 
+   railing_job, railing_mode_job_name = dag_utils.write_convert_sub(tag='railing',log_dir=None,arg_str=railing_args,file_input="",file_output=",".join(CIP_files),out_dir=opts.working_directory,exe=railing_exe,universe=local_worker_universe,no_grid=no_worker_grid)
+   railing_job.add_condor_cmd("initialdir",opts.working_directory+"/iteration_$(macroiteration)_cip")
+   railing_job.set_log_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/railing-$(cluster)-$(process).log")
+   railing_job.set_stderr_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/railing--$(cluster)-$(process).err")
+   railing_job.set_stdout_file(opts.working_directory+"/iteration_$(macroiteration)_cip/logs/railing-$(cluster)-$(process).out")
+   railing_job.add_condor_cmd('request_disk',opts.general_request_disk)
+   if opts.use_full_submit_paths:
+   	fname = opts.working_directory+"/"+railing_job.get_sub_file()
+   railing_job.write_sub_file()
 
 if opts.plot_args and opts.test_args:
     # default: last two iterations
@@ -1592,6 +1637,23 @@ for it in np.arange(it_start,opts.n_iterations):
 
         parent_fit_node=test_node
 
+    if opts.search_reflected_sky_mode and it == reflected_mode_iter-1:
+    	reflected_mode_node=pipeline.CondorDAGNode(reflected_mode_job)
+    	reflected_mode_node.add_macro("macroiteration", it)
+    	reflected_mode_node.add_parent(test_node)
+    	reflected_mode_node.set_category("REFLECTEDSKYMODE")
+    	reflected_mode_node.set_retry(opts.general_retries)
+    	dag.add_node(reflected_mode_node)
+    	parent_fit_node=reflected_mode_node
+
+    if opts.check_posterior_railing and it == railing_iter-1:
+        railing_node=pipeline.CondorDAGNode(railing_job)
+        railing_node.add_macro("macroiteration", it)
+        railing_node.add_parent(test_node)
+        railing_node.set_category("RAILING")
+        railing_node.set_retry(opts.general_retries)
+        dag.add_node(railing_node)
+        parent_fit_node = railing_node
 
 # Create export stages for extrinsic samples
 if opts.last_iteration_extrinsic:
