@@ -305,6 +305,7 @@ parser.add_argument("--check-posterior-railing", default=False, help="Checks the
 parser.add_argument("--check-posterior-railing-iteration", default=None, help="Iteration at which the code should check for raling, if None it will check at third to last iteration")
 parser.add_argument("--railing-parameters", default="[mc, eta, s1z, s2z]", help="List of parameters that we want to check railing for")
 parser.add_argument("--internal-use-high-mass-coordinates", action='store_true', help="If present, will fit in [mtot, eta, chiPlus (xi) and chiMinus] and sample in [mc, delta_mc, s1z, s2z]")
+parser.add_argument("--puff-type", default='default', help="Puffing type. Options are default |  kde")
 opts=  parser.parse_args()
 
 
@@ -1351,7 +1352,10 @@ if opts.assume_matter or opts.assume_eccentric:
 if not(opts.ile_runtime_max_minutes is None):
     cmd += " --ile-runtime-max-minutes {} ".format(opts.ile_runtime_max_minutes)
 if not(opts.internal_use_amr) or opts.internal_use_amr_puff:
-    cmd+= " --puff-exe `which util_ParameterPuffball.py` --puff-cadence 1 --puff-max-it " + str(puff_max_it)+ " --puff-args `pwd`/args_puff.txt "
+   if opts.puff_type == 'default': 
+   	cmd+= " --puff-exe `which util_ParameterPuffball.py` --puff-cadence 1 --puff-max-it " + str(puff_max_it)+ " --puff-args `pwd`/args_puff.txt "
+   elif opts.puff_type == 'kde':
+   	cmd+= " --puff-exe `which util_ParameterPuffball_kde.py` --puff-cadence 1 --puff-max-it " + str(puff_max_it)+ " --puff-args `pwd`/args_puff.txt "
 if opts.assume_eccentric:
     cmd += " --use-eccentricity "
 if opts.calibration_reweighting and (not opts.bilby_pickle_file):
