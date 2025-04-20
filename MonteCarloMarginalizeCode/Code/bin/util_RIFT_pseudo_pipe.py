@@ -276,7 +276,7 @@ parser.add_argument("--internal-mitigate-fd-J-frame",default="L_frame",help="L_f
 parser.add_argument("--LISA", action="store_true", help="Let ILE know that a LISA signal is being analyzed, causing the ILE script to use analyze_event_lisa function instead of analyze_event.")
 parser.add_argument("--lisa-reference-frequency", default=None, help="Reference frequency of a LISA signal. Passed downstream to ILE and is used in computing LISA response. If none, then code sets f**2 A(f) frequency as fref. ")
 parser.add_argument("--lisa-reference-time", default=0.0, help="Reference time of a LISA signal, defined at lisa-reference-frequency. Passed downstream to ILE and is used in computing LISA response + time shift in precomputation. ")
-parser.add_argument("--modes", default=None, help="List of modes to be used in recovery waveforms, supersedes lmax (only works for LISA analysis so far due to difference waveform functions). --modes '[(2,2),(3,3)]'")
+parser.add_argument("--modes", default=None, help="List of modes to be used in recovery waveforms, supersedes lmax (only works for LISA analysis so far due to difference waveform in functions). --modes '[(2,2),(3,3)]'")
 parser.add_argument("--h5-frame-FD", default=False, action="store_true", help="Let the code know that the frames are in h5 format (and in frequency domain) and not in gwf, the information is passed down to ILE scripts")
 parser.add_argument("--h5-frame", default=False, action="store_true", help="Let the code know that the frames are in h5 format and not in gwf, the information is passed down to ILE scripts")
 parser.add_argument("--data-integration-window-half", default=None, help="For longer signal srate might be such the integration range is smaller than deltaT, so need to redefine it. By default it takes a value of 300 ms")
@@ -303,7 +303,7 @@ parser.add_argument("--search-reflected-sky-mode", default=False, help="Use the 
 parser.add_argument("--search-reflected-sky-mode-iteration", default=None, help="Iteration at which the code should search for reflected mode, if None will search and n-2th iteration")
 parser.add_argument("--check-posterior-railing", default=False, help="Checks the railing of the posterior and if it finds it it broadens the prior ranges")
 parser.add_argument("--check-posterior-railing-iteration", default=None, help="Iteration at which the code should check for raling, if None it will check at third to last iteration")
-parser.add_argument("--railing-parameters", default="[mc, eta, s1z, s2z]", help="List of parameters that we want to check the railing of parameter")
+parser.add_argument("--railing-parameters", default="[mc, eta, s1z, s2z]", help="List of parameters that we want to check railing for")
 parser.add_argument("--internal-use-high-mass-coordinates", action='store_true', help="If present, will fit in [mtot, eta, chiPlus (xi) and chiMinus] and sample in [mc, delta_mc, s1z, s2z]")
 opts=  parser.parse_args()
 
