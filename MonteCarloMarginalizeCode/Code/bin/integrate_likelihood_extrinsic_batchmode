@@ -1309,7 +1309,7 @@ def resample_samples_LISA(my_samples, rholms, cross_terms, right_ascension, decl
   # Loop over each extrinsic sample
   for indx in np.arange(n_samples):
     #interp = scipy.interpolate.interp1d(tvals, lnLt[indx] - lnLt_norm[indx], kind='cubic')
-    interp = scipy.interpolate.InterpolatedUnivariateSpline(tvals, lnLt[indx] - lnLt_norm[indx], kind=3) # match RIFT's original interpolation function
+    interp = scipy.interpolate.InterpolatedUnivariateSpline(tvals, lnLt[indx] - lnLt_norm[indx], k=3) # match RIFT's original interpolation function
     # interpolating
     interp_lnLt = interp(interp_tvals)
     # weighted resampling
