@@ -407,11 +407,11 @@ def get_tf_from_phase_dict(hlm, fmax, fref=None, debug=True, shift=True):#tested
                 print(f"\tShifting {mode}")
             tf_dict[mode] = tf_dict[mode]  - time_shift  # confirmed that I don't need to set all modes tf as 0. Conceptually, for the same time the other modes will be at a different frequency.
             if debug:
-                print(f"\t\tFor {mode}, phase = {phase_dict[mode][index_at_fref]} ({phase_dict[mode][index_at_fref]%(2*np.pi)}) before subtracting time shift such that tref[2,2] = 0 at fref.")
+                print(f"\t\tFor {mode}, phase = {phase_dict[mode][index_at_fref]} ({phase_dict[mode][index_at_fref]%(2*np.pi)}) before subtracting time shift such that tref[2,2] = 0 at fref. tf at fref is {tf_dict[mode][index_at_fref]}")
             # CAREFUL
             phase_dict[mode] = phase_dict[mode] - 2*np.pi*time_shift*freq_dict[mode]
             if debug:
-                print(f"\t\tFor {mode}, phase = {phase_dict[mode][index_at_fref]} ({phase_dict[mode][index_at_fref]%(2*np.pi)}) after subtracting time shift and before setting phase[2,2] = 0 such that tref[2,2] = 0 at fref.")
+                print(f"\t\tFor {mode}, phase = {phase_dict[mode][index_at_fref]} ({phase_dict[mode][index_at_fref]%(2*np.pi)}) after subtracting time shift and before setting phase[2,2] = 0 such that tref[2,2] = 0 at fref. tf at fref is {tf_dict[mode][index_at_fref]}")
             if mode == (2,2):
                phase_22_current = phase_dict[2,2][index_at_fref]
                difference = reference_phase - phase_22_current
