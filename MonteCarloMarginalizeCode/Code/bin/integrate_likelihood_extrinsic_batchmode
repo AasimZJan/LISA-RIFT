@@ -543,11 +543,11 @@ if opts.sim_xml:
         P.psi=0.0
         P.incl = 0.0       # only works for aligned spins. Be careful.
         #P.fref = opts.reference_freq  # twice?
-        if opts.approximant == "SEOBNRv5EHM":
-            P.approx = "SEOBNRv5EHM"
-        if opts.approximant != "TaylorT4" and opts.approximant != "SEOBNRv5EHM": # not default setting
+        if "v5" in opts.approximant:
+            P.approx = opts.approximant
+        elif opts.approximant != "TaylorT4": # not default setting
             P.approx = lalsimutils.lalsim.GetApproximantFromString(opts.approximant)  # allow user to override the approx setting. Important for NR followup, where no approx set in sim_xml!
-        if opts.approximant == "EccentricTD":
+        elif opts.approximant == "EccentricTD":
             P.phaseO = 3
 
     P = P_list[0]  # Load in the physical parameters of the injection.  
@@ -1308,13 +1308,14 @@ def resample_samples_LISA(my_samples, rholms, cross_terms, right_ascension, decl
   indx_list = np.arange(len(interp_tvals))
   # Loop over each extrinsic sample
   for indx in np.arange(n_samples):
-    interp = scipy.interpolate.interp1d(tvals, lnLt[indx] - lnLt_norm[indx], kind='cubic')
+    #interp = scipy.interpolate.interp1d(tvals, lnLt[indx] - lnLt_norm[indx], kind='cubic')
+    interp = scipy.interpolate.InterpolatedUnivariateSpline(tvals, lnLt[indx] - lnLt_norm[indx], kind=3) # match RIFT's original interpolation function
     # interpolating
     interp_lnLt = interp(interp_tvals)
     # weighted resampling
     indx_choose = np.random.choice(indx_list, p=np.exp(interp_lnLt)/np.sum(np.exp(interp_lnLt)))
     t_out[indx] = interp_tvals[indx_choose]
-    lnL_out[indx] = interp_lnLt[indx_choose]
+    lnL_out[indx] = interp_lnLt[indx_choose] + lnLt_norm[indx]
   print(t_out)
   # saving 
   my_samples['t_ref'] = fiducial_epoch + t_out # add sample time jitter from reweighting to samples
