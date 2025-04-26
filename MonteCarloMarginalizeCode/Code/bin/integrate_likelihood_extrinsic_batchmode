@@ -253,7 +253,7 @@ lisa_params.add_option("--LISA", action="store_true", help = "Let the code know 
 lisa_params.add_option("--h5-frame", action="store_true", help = "LISA injection frames are in h5 format. Data is assumed to be in time domain when this option is used.")
 lisa_params.add_option("--h5-frame-FD", action="store_true", help = "LISA injection frames are in h5 format. Data is assumed to be in frequency domain when this option is used.")
 lisa_params.add_option("--lisa-reference-time", default=0.0, type=float, help = "Time in seconds at reference frequency, if reference frequency is not provided then reference frequency is the frequency at max(f^2 * A_22(f)).")
-lisa_params.add_option("--lisa-reference-frequency", default=None, type=float, help = "Reference frequency in Hz, if reference frequency is not provided then reference frequency is the frequency at max(f^2 * A_22(f)).")
+lisa_params.add_option("--lisa-reference-frequency", default=None, help = "Reference frequency in Hz, if reference frequency is not provided then reference frequency is the frequency at max(f^2 * A_22(f)).")
 lisa_params.add_option("--modes", default=None, help = "If you need specific modes, set modes to an array eg --modes '[(2,2),(3,3)]")
 lisa_params.add_option("--lisa-fixed-sky", default=False, help="Not varying skylocation")
 lisa_params.add_option("--ecliptic-latitude", default=0, help="Value of ecliptic latitude (beta) if sky location is fixed")
