@@ -346,6 +346,9 @@ def get_tf_from_phase_dict(hlm, fmax, fref=None, debug=True, shift=True):#tested
     modes = np.array(list(hlm.keys()))
     #freq = -lsu.evaluate_fvals(hlm[tuple(modes[0])]) # THIS CONSUMES MOST TIME
     freq = -hlm[tuple(modes[0])].deltaF*np.arange(hlm[tuple(modes[0])].data.length//2, -hlm[tuple(modes[0])].data.length//2, -1) # this matches evaluate_fvals without using for loops
+    if not(isinstance(fref, float) or isinstance(fref, int)):
+        print(f'Provided fref is neither int or float, setting it to None')
+        fref = None
     for mode in modes:
         print(f"\n\tMode = {mode}")
         mode = tuple(mode)
@@ -381,8 +384,8 @@ def get_tf_from_phase_dict(hlm, fmax, fref=None, debug=True, shift=True):#tested
         assert (2,2) in modes, "(2,2) mode needs to be present."
         # phase and tf shifts
         if not fref:
-                # if fref not provided, set it to  frequency at max (f^2 * A_{2,2}(f)) (BBHx)
-                fref = freq_dict[2,2][np.argmax(freq_dict[2,2]**2 * amp_dict[2,2])] # frequency at max (f^2 * A_{2,2}(f))
+            # if fref not provided, set it to  frequency at max (f^2 * A_{2,2}(f)) (BBHx)
+            fref = freq_dict[2,2][np.argmax(freq_dict[2,2]**2 * amp_dict[2,2])] # frequency at max (f^2 * A_{2,2}(f))
         
         # find tf at fref
         index_at_fref = get_closest_index(freq_dict[2,2], fref)
@@ -405,9 +408,9 @@ def get_tf_from_phase_dict(hlm, fmax, fref=None, debug=True, shift=True):#tested
         for mode in modes:
             if debug:
                 print(f"\tShifting {mode}")
-            tf_dict[mode] = tf_dict[mode]  - time_shift  # confirmed that I don't need to set all modes tf as 0. Conceptually, for the same time the other modes will be at a different frequency.
             if debug:
                 print(f"\t\tFor {mode}, phase = {phase_dict[mode][index_at_fref]} ({phase_dict[mode][index_at_fref]%(2*np.pi)}) before subtracting time shift such that tref[2,2] = 0 at fref. tf at fref is {tf_dict[mode][index_at_fref]}")
+            tf_dict[mode] = tf_dict[mode]  - time_shift  # confirmed that I don't need to set all modes tf as 0. Conceptually, for the same time the other modes will be at a different frequency.
             # CAREFUL
             phase_dict[mode] = phase_dict[mode] - 2*np.pi*time_shift*freq_dict[mode]
             if debug:
