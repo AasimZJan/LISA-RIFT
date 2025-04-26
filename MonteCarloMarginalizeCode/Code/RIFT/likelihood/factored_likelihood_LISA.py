@@ -128,7 +128,7 @@ def PrecomputeAlignedSpinLISA(tref, fref, t_window, hlms, hlms_conj, data_dict, 
     N_window = int(2 * t_window/deltaT)
     
     # first get 6 terms per mode, and multiply with detector response
-    tf_dict, f_dict, amp_dict, phase_dict = get_tf_from_phase_dict(hlms, fNyq, fref)  #here we need fmax, but RIFT has fhigh
+    tf_dict, f_dict, amp_dict, phase_dict = get_tf_from_phase_dict(hlms, fmax=fNyq, fref=fref)  #here we need fmax, but RIFT has fhigh
     # index_at_fref = get_closest_index(f_dict[2,2], fref)
     
     collect_mode_terms = {}

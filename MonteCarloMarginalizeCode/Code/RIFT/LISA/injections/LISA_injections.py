@@ -13,7 +13,7 @@ __author__ = "A. Jan"
 ###########################################################################################
 def create_lisa_injections(hlmf, fmax, fref, beta, lamda, psi, inclination, phi_ref, tref, provide_full_output = False):
     print(f"create_lisa_injections function has been called with following arguments:\n{locals()}")
-    tf_dict, f_dict, amp_dict, phase_dict = get_tf_from_phase_dict(hlmf, fmax, fref)
+    tf_dict, f_dict, amp_dict, phase_dict = get_tf_from_phase_dict(hlmf, fmax=fmax, fref=fref)
     A = 0.0
     E = 0.0
     T = 0.0
