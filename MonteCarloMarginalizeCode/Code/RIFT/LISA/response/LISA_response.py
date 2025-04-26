@@ -356,6 +356,7 @@ def get_tf_from_phase_dict(hlm, fmax, fref=None, debug=True, derivative_method='
         
         # compute tf = -1/(2pi) * d(phase)/df
         if derivative_method == 'numerical-order-1':
+            # faster, can be unstable for large deltaT
             dphi = np.unwrap(np.diff(phase)) 
             time = np.divide(-dphi, (2.*np.pi*hlm[mode].deltaF))
             # diff reduces len by 1 so artifically increasing it by adding an extra zero at the end
@@ -363,6 +364,7 @@ def get_tf_from_phase_dict(hlm, fmax, fref=None, debug=True, derivative_method='
             tmp[:-1] = time
             time = tmp
         elif derivative_method == 'analytical':
+            # slower but stable
             spline = UnivariateSpline(freq, phase, s=0)
             dphase_df = spline.derivative()(freq)
             time = np.divide(-dphase_df, (2.*np.pi))
