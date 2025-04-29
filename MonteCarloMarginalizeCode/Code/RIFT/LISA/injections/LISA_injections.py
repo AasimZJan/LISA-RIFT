@@ -107,9 +107,9 @@ def calculate_snr(data_dict, fmin, fmax, fNyq, psd, save_path, only_positive_mod
     snr = np.real(np.sqrt(A_snr**2 + E_snr**2 + T_snr**2)) # SNR (zero noise) = sqrt(<h|h>)
     
     print(f"A-channel snr = {A_snr.real:0.3f}, E-channel snr = {E_snr.real:0.3f}, T-channel snr = {T_snr.real:0.3f},\n\tTotal SNR = {snr:0.3f}.")
-    snr_dict = {'A':A_snr, 'E':E_snr, 'T':T_snr}
+    snr_dict = {'A':A_snr.real, 'E':E_snr.real, 'T':T_snr.real}
     with open(f"{save_path}/snr-report.txt", 'w') as f:
-        json.dump(rho_dict, f)
+        json.dump(snr_dict, f)
         f.flush()
     return snr
 
@@ -297,5 +297,5 @@ def generate_lisa_injections(data_dict, param_dict, get_snr = True):
     os.system(f" util_SimInspiralToCoinc.py --sim-xml {param_dict['save_path']}/mdc.xml.gz --event 0 --ifo A --ifo E --ifo T ; mv coinc.xml {param_dict['save_path']}/coinc.xml")
     if get_snr and 'psd_path' in param_dict:
         psd = load_psd(param_dict)
-        snr = calculate_snr(data_dict, param_dict['snr_fmin'], param_dict['snr_fmax'], 0.5/param_dict['deltaT'], psd)
+        snr = calculate_snr(data_dict, param_dict['snr_fmin'], param_dict['snr_fmax'], 0.5/param_dict['deltaT'], psd, param_dict["save_path"])
         create_PSD_injection_figure(data_dict, psd, param_dict["save_path"], snr)
