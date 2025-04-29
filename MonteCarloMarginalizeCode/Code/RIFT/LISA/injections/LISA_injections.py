@@ -6,6 +6,7 @@ import lalsimulation
 import matplotlib.pyplot as plt
 import os
 import h5py
+import json
 __author__ = "A. Jan"
 
 ###########################################################################################
@@ -71,7 +72,7 @@ def load_psd(param_dict):
     psd["T"].data.data[ psd_fvals < param_dict['snr_fmin']] = 0
     return psd
 
-def calculate_snr(data_dict, fmin, fmax, fNyq, psd, only_positive_modes=True):
+def calculate_snr(data_dict, fmin, fmax, fNyq, psd, save_path, only_positive_modes=True):
     """
     Calculate the zero-noise Signal-to-Noise Ratio (SNR) for LISA signals.
 
@@ -81,6 +82,7 @@ def calculate_snr(data_dict, fmin, fmax, fNyq, psd, only_positive_modes=True):
     fmax (float): The maximum frequency for integration in Hz,
     fNyq (float): The Nyquist frequency in Hz,
     psd (dict): A dictionary containing the PSD for A, E, and T channels.
+    save_path (str): where to save snr dict
 
     Returns:
     float: The total zero-noise SNR calculated across all channels.
@@ -105,6 +107,10 @@ def calculate_snr(data_dict, fmin, fmax, fNyq, psd, only_positive_modes=True):
     snr = np.real(np.sqrt(A_snr**2 + E_snr**2 + T_snr**2)) # SNR (zero noise) = sqrt(<h|h>)
     
     print(f"A-channel snr = {A_snr.real:0.3f}, E-channel snr = {E_snr.real:0.3f}, T-channel snr = {T_snr.real:0.3f},\n\tTotal SNR = {snr:0.3f}.")
+    snr_dict = {'A':A_snr, 'E':E_snr, 'T':T_snr}
+    with open(f"{save_path}/snr-report.txt", 'w') as f:
+        json.dump(rho_dict, f)
+        f.flush()
     return snr
 
 def create_PSD_injection_figure(data_dict, psd, injection_save_path, snr):
