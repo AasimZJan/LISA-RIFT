@@ -1164,7 +1164,7 @@ def write_convert_sub(tag='convert', exe=None, file_input=None,file_output=None,
     ile_job.set_stderr_file("%s%s-%s.err" % (log_dir, tag, uniq_str))
     ile_job.set_stdout_file(file_output)
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     # To change interactively:
     #   condor_qedit
     # for example: 
@@ -1225,7 +1225,7 @@ def write_test_sub(tag='converge', exe=None,samples_files=None, base=None,target
     ile_job.set_stderr_file("%s%s-%s.err" % (log_dir, tag, uniq_str))
     ile_job.set_stdout_file(target)
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     # To change interactively:
     #   condor_qedit
     # for example: 
@@ -1278,7 +1278,7 @@ def write_plot_sub(tag='converge', exe=None,samples_files=None, base=None,target
     ile_job.set_stderr_file("%s%s-%s.err" % (log_dir, tag, uniq_str))
     ile_job.set_stdout_file(target)
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     # To change interactively:
     #   condor_qedit
     # for example: 
@@ -1321,7 +1321,7 @@ def write_init_sub(tag='gridinit', exe=None,arg_str=None,log_dir=None, use_eos=F
     ile_job.set_stderr_file("%s%s-%s.err" % (log_dir, tag, uniq_str))
     ile_job.set_stdout_file("%s%s-%s.out" % (log_dir, tag, uniq_str))
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     # To change interactively:
     #   condor_qedit
     # for example: 
@@ -1441,7 +1441,7 @@ def write_psd_sub_BW_monoblock(tag='PSD_BW_mono', exe=None, log_dir=None, ncopie
         else:
             ile_job.add_opt(opt.replace("_", "-"), str(param))
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     ile_job.add_condor_cmd('request_memory', str(request_memory)) 
 
     # Write requirements
@@ -1552,7 +1552,7 @@ def write_psd_sub_BW_step1(tag='PSD_BW_post', exe=None, log_dir=None, ncopies=1,
         else:
             ile_job.add_opt(opt.replace("_", "-"), str(param))
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     ile_job.add_condor_cmd('request_memory', str(request_memory)) 
 
     # Write requirements
@@ -1661,7 +1661,7 @@ def write_psd_sub_BW_step0(tag='PSD_BW', exe=None, log_dir=None, ncopies=1,arg_s
         else:
             ile_job.add_opt(opt.replace("_", "-"), str(param))
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     ile_job.add_condor_cmd('request_memory', str(request_memory)) 
 
     # Write requirements
@@ -1711,7 +1711,7 @@ def write_resample_sub(tag='resample', exe=None, file_input=None,file_output=Non
     ile_job.set_stderr_file("%s%s-%s.err" % (log_dir, tag, uniq_str))
     ile_job.set_stdout_file(file_output)
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     # To change interactively:
     #   condor_qedit
     # for example: 
@@ -1776,7 +1776,7 @@ def write_cat_sub(tag='cat', exe=None, file_prefix=None,file_postfix=None,file_o
     ile_job.set_stderr_file("%s%s-%s.err" % (log_dir, tag, uniq_str))
     ile_job.set_stdout_file("%s%s-%s.out" % (log_dir, tag, uniq_str))
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     try:
         ile_job.add_condor_cmd('accounting_group',os.environ['LIGO_ACCOUNTING'])
         ile_job.add_condor_cmd('accounting_group_user',os.environ['LIGO_USER_NAME'])
@@ -1815,7 +1815,7 @@ def write_convertpsd_sub(tag='convert_psd', exe=None, ifo=None,file_input=None,t
         # Copy output PSD into place
         ile_job.add_condor_cmd("+PostCmd", '" cp '+ifo+'-psd.xml.gz ' + target_dir +'"')
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     try:
         ile_job.add_condor_cmd('accounting_group',os.environ['LIGO_ACCOUNTING'])
         ile_job.add_condor_cmd('accounting_group_user',os.environ['LIGO_USER_NAME'])
@@ -1896,7 +1896,7 @@ def write_joingrids_sub(tag='join_grids', exe=None, universe='vanilla', input_pa
     if old_add and n_explode > 1:
         ile_job.add_opt("ilwdchar-compat",'')  # needed?
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     try:
         ile_job.add_condor_cmd('accounting_group',os.environ['LIGO_ACCOUNTING'])
         ile_job.add_condor_cmd('accounting_group_user',os.environ['LIGO_USER_NAME'])
@@ -1946,7 +1946,7 @@ def write_subdagILE_sub(tag='subdag_ile', full_path_name=True, exe=None, univers
 
 #    ile_job.add_condor_cmd("+PostCmd",  ' "' + gzip + ' ' +fname_out + '"')
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     try:
         ile_job.add_condor_cmd('accounting_group',os.environ['LIGO_ACCOUNTING'])
         ile_job.add_condor_cmd('accounting_group_user',os.environ['LIGO_USER_NAME'])
@@ -2035,7 +2035,7 @@ def write_calibration_uncertainty_reweighting_sub(tag='Calib_reweight', exe=None
         else:
             ile_job.add_opt(opt.replace("_", "-"), str(param))
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     ile_job.add_condor_cmd('request_memory', str(request_memory))
 
     # no grid
@@ -2241,7 +2241,7 @@ def write_bilby_pickle_sub(tag='Bilby_pickle', exe=None, universe='local', log_d
             ile_job.add_opt(opt.replace("_", "-"), str(param))
 
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     ile_job.add_condor_cmd('request_memory', str(request_memory))
 
     # no grid
@@ -2314,7 +2314,7 @@ def write_comov_distance_reweighting_sub(tag='Comov_dist', comov_distance_reweig
         else:
             ile_job.add_opt(opt.replace("_", "-"), str(param))
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     ile_job.add_condor_cmd('request_memory', str(request_memory))
 
     # no grid
@@ -2389,7 +2389,7 @@ def write_convert_ascii_to_h5_sub(tag='Convert_ascii2h5', convert_ascii_to_h5_ex
         else:
             ile_job.add_opt(opt.replace("_", "-"), str(param))
 
-    ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+    ile_job.add_condor_cmd('getenv', default_getenv_value)
     ile_job.add_condor_cmd('request_memory', str(request_memory))
 
     # no grid
@@ -2505,7 +2505,7 @@ def write_hyperpost_sub(tag='HYPER', exe=None, input_net='all.marg_net',output='
             ile_job.add_opt(opt.replace("_", "-"), str(param))
 
     if not use_osg:
-        ile_job.add_condor_cmd('getenv', 'default_getenv_value')
+        ile_job.add_condor_cmd('getenv', default_getenv_value)
     ile_job.add_condor_cmd('request_memory', str(request_memory)) 
     if not(request_disk is False):
         ile_job.add_condor_cmd('request_disk', str(request_disk)) 
